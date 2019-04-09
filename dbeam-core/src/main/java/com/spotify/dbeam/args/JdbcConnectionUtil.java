@@ -31,7 +31,8 @@ public class JdbcConnectionUtil {
       ImmutableMap.of(
           "postgresql", "org.postgresql.Driver",
           "mysql", "com.mysql.jdbc.Driver",
-          "h2", "org.h2.Driver"
+          "h2", "org.h2.Driver",
+          "sqlserver", "com.microsoft.sqlserver.jdbc.SQLServerDriver"
       );
 
   public static String getDriverClass(String url) throws ClassNotFoundException {
@@ -40,7 +41,8 @@ public class JdbcConnectionUtil {
         parts.length > 1
         && "jdbc".equals(parts[0])
         && driverMapping.get(parts[1]) != null,
-        "Invalid jdbc connection URL: %s. Expect jdbc:postgresql or jdbc:mysql as prefix.",
+        "Invalid jdbc connection URL: %s. "
+        + "Expect jdbc:postgresql, jdbc:mysql or jdbc:sqlserver as prefix.",
         url
     );
     return Class.forName(driverMapping.get(parts[1])).getCanonicalName();

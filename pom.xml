@@ -122,6 +122,7 @@
         <postgresql.version>42.2.5</postgresql.version>
         <mysql.version>5.1.47</mysql.version>
         <socket-factory.version>1.0.11</socket-factory.version>
+        <mssql.version>7.2.1.jre8</mssql.version>
 
         <jackson.version>2.9.8</jackson.version>
         <slf4j.version>1.7.25</slf4j.version>
@@ -346,6 +347,11 @@
                 <groupId>com.google.cloud.sql</groupId>
                 <artifactId>mysql-socket-factory</artifactId>
                 <version>${socket-factory.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.microsoft.sqlserver</groupId>
+                <artifactId>mssql-jdbc</artifactId>
+                <version>${mssql.version}</version>
             </dependency>
 
             <!-- Test Deps -->

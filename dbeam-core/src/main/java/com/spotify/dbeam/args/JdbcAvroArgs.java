@@ -70,6 +70,7 @@ public abstract class JdbcAvroArgs implements Serializable {
                                     int fetchSize, String avroCodec) {
     Preconditions.checkArgument(avroCodec.matches("snappy|deflate[1-9]"),
                           "Avro codec should be snappy or deflate1, .., deflate9");
+
     return new AutoValue_JdbcAvroArgs.Builder()
         .setJdbcConnectionConfiguration(jdbcConnectionArgs)
         .setFetchSize(fetchSize)

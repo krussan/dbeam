@@ -38,6 +38,8 @@ import org.joda.time.DateTime;
 import org.joda.time.Days;
 import org.joda.time.LocalDate;
 import org.joda.time.ReadablePeriod;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A POJO describing how to create queries for DBeam exports.
@@ -58,6 +60,8 @@ public abstract class QueryBuilderArgs implements Serializable {
   public abstract Optional<String> splitColumn();
 
   public abstract Optional<Integer> queryParallelism();
+
+  public abstract Optional<String> evenDistribution();
 
   public abstract Builder builder();
 
@@ -88,19 +92,24 @@ public abstract class QueryBuilderArgs implements Serializable {
 
     public abstract Builder setQueryParallelism(Optional<Integer> queryParallelism);
 
+    public abstract Builder setEvenDistribution(String parallelism);
+
+    public abstract Builder setEvenDistribution(Optional<String> distribution);
 
     public abstract QueryBuilderArgs build();
   }
 
-  private static Boolean checkTableName(String tableName) {
-    return tableName.matches("^[a-zA-Z_][a-zA-Z0-9_]*$");
+  private static Boolean checkTableName(String tableName, String tableNameRegex) {
+    return tableName.matches(tableNameRegex);
   }
 
-  public static QueryBuilderArgs create(String tableName) {
+  private static Logger LOGGER = LoggerFactory.getLogger(QueryBuilderArgs.class);
+
+  public static QueryBuilderArgs create(String tableName, String tableNameRegex) {
     checkArgument(tableName != null,
         "TableName cannot be null");
-    checkArgument(checkTableName(tableName),
-        "'table' must follow [a-zA-Z_][a-zA-Z0-9_]*");
+    checkArgument(checkTableName(tableName, tableNameRegex),
+        String.format("'table' must follow {}", tableNameRegex));
     return new AutoValue_QueryBuilderArgs.Builder()
         .setTableName(tableName)
         .setPartitionPeriod(Days.ONE)
@@ -111,14 +120,16 @@ public abstract class QueryBuilderArgs implements Serializable {
    * Create queries to be executed for the export job.
    *
    * @param connection A connection which is used to determine limits for parallel queries.
+   *
    * @return A list of queries to be executed.
+   *
    * @throws SQLException when it fails to find out limits for splits.
    */
   public Iterable<String> buildQueries(Connection connection)
       throws SQLException {
     checkArgument(!queryParallelism().isPresent() || splitColumn().isPresent(),
         "Cannot use queryParallelism because no column to split is specified. "
-            + "Please specify column to use for splitting using --splitColumn");
+        + "Please specify column to use for splitting using --splitColumn");
     checkArgument(queryParallelism().isPresent() || !splitColumn().isPresent(),
         "argument splitColumn has no effect since --queryParallelism is not specified");
     queryParallelism().ifPresent(p -> checkArgument(p > 0,
@@ -137,28 +148,51 @@ public abstract class QueryBuilderArgs implements Serializable {
     ).orElse("");
 
     if (queryParallelism().isPresent() && splitColumn().isPresent()) {
+      LOGGER.info("Creating parallelism queries");
+
+      String limitWithParallelism = this.limit()
+          .map(l -> String.format(" LIMIT %d", l / queryParallelism().get())).orElse("");
+
+      String queryFormat = String
+          .format("SELECT * FROM %s WHERE 1=1%s%s%s",
+              this.tableName(),
+              partitionCondition,
+              "%s", // the split conditions
+              limitWithParallelism);
+
+      if (evenDistribution().isPresent()) {
+        LOGGER.info("Creating even distribution queries");
+        String dist = evenDistribution().get();
+
+        if (dist.equalsIgnoreCase("even") || dist.equalsIgnoreCase("true")) {
+          Iterable<Long> bounds = findDistributionBounds(connection, this.tableName(),
+              partitionCondition, splitColumn().get());
+
+          return queriesForEvenDistribution(bounds, splitColumn().get(), queryFormat);
+        } else if (dist.equalsIgnoreCase("distinct")) {
+          Iterable<Long> bounds = findDistinctDistributionBounds(connection, this.tableName(),
+              partitionCondition, splitColumn().get());
+
+          return queriesForEvenDistribution(bounds, splitColumn().get(), queryFormat);
+        }
+
+      }
+
+      LOGGER.info("Creating straight split parallelism");
 
       long[] minMax = findInputBounds(connection, this.tableName(), partitionCondition,
           splitColumn().get());
       long min = minMax[0];
       long max = minMax[1];
 
-
-      String limitWithParallelism = this.limit()
-          .map(l -> String.format(" LIMIT %d", l / queryParallelism().get())).orElse("");
-      String queryFormat = String
-          .format("SELECT * FROM %s WHERE 1=1%s%s%s",
-                  this.tableName(),
-                  partitionCondition,
-                  "%s", // the split conditions
-                  limitWithParallelism);
-
-      return queriesForBounds(min, max, queryParallelism().get(), splitColumn().get(), queryFormat);
-    } else {
-      return Lists.newArrayList(
-          String.format("SELECT * FROM %s WHERE 1=1%s%s", this.tableName(), partitionCondition,
-              limit));
+      return queriesForBounds(min, max, queryParallelism().get(), splitColumn().get(),
+          queryFormat);
     }
+
+    return Lists.newArrayList(
+        String.format("SELECT * FROM %s WHERE 1=1%s%s", this.tableName(), partitionCondition,
+            limit));
+
   }
 
   /**
@@ -166,10 +200,11 @@ public abstract class QueryBuilderArgs implements Serializable {
    * partition conditions.
    *
    * @return A long array of two elements, with [0] being min and [1] being max.
+   *
    * @throws SQLException when there is an exception retrieving the max and min fails.
    */
   private long[] findInputBounds(Connection connection, String tableName, String partitionCondition,
-      String splitColumn)
+                                 String splitColumn)
       throws SQLException {
     // Generate queries to get limits of split column.
     String query = String.format(
@@ -200,7 +235,112 @@ public abstract class QueryBuilderArgs implements Serializable {
       }
     }
 
-    return new long[]{min, max};
+    return new long[]{ min, max };
+  }
+
+  /**
+   * Groups the data in buckets so that the reads can be evenly distributed.
+   *
+   * @return A list of values from the partition column to split by
+   *
+   * @throws SQLException when there is an exception retrieving the max and min fails.
+   */
+  private Iterable<Long> findDistributionBounds(Connection connection, String tableName,
+                                                String partitionCondition,
+                                                String splitColumn) throws SQLException {
+    long nrOfRows = 0;
+    long maxValue = 0;
+    List<Long> result = new ArrayList<>();
+
+    try (Statement statement = connection.createStatement()) {
+      ResultSet rs = statement.executeQuery(
+          String.format("SELECT MAX(%s), COUNT(1) FROM %s", splitColumn, tableName));
+
+      if (rs.next()) {
+        maxValue = rs.getLong(1);
+        nrOfRows = rs.getLong(2);
+      } else {
+        return result;
+      }
+    }
+
+    try (Statement statement = connection.createStatement()) {
+      final ResultSet
+          resultSet = statement.executeQuery(String.format(
+          "SELECT %1$s, COUNT(1) AS cnt FROM %2$s GROUP BY %1$s ORDER BY %1$s",
+          splitColumn,
+          tableName));
+
+      long c = 0;
+      long boundary = nrOfRows / queryParallelism().get();
+
+      while (resultSet.next()) {
+        c += resultSet.getLong(2);
+        if (c > boundary) {
+          result.add(resultSet.getLong(1));
+          c = 0;
+        }
+      }
+
+      result.add(maxValue);
+
+      return result;
+
+    }
+
+  }
+
+  private Iterable<Long> findDistinctDistributionBounds(Connection connection, String tableName,
+                                                        String partitionCondition,
+                                                        String splitColumn) throws SQLException {
+    List<Long> distinctValues = new ArrayList<>();
+    List<Long> result = new ArrayList<>();
+
+    try (Statement statement = connection.createStatement()) {
+      ResultSet rs = statement.executeQuery(
+          String.format("SELECT DISTINCT %s FROM %s", splitColumn, tableName));
+
+      while (rs.next()) {
+        distinctValues.add(rs.getLong(1));
+      }
+
+      int nrOfSets = distinctValues.size();
+      int bucketSize = nrOfSets / queryParallelism().get();
+      int c = 0;
+
+      for (long b : distinctValues) {
+        if (c >= bucketSize) {
+          result.add(b);
+          c = 0;
+        } else {
+          c++;
+        }
+      }
+      return result;
+    }
+
+  }
+
+  private Iterable<String> queriesForEvenDistribution(Iterable<Long> bounds,
+                                                      String splitColumn,
+                                                      String queryFormat) {
+
+    List<String> queries = new ArrayList<>();
+    long prev = 0;
+
+    for (long b : bounds) {
+      String condition = " AND %1$s >= %2$s AND %1$s < %3$s ";
+
+      queries.add(String.format(queryFormat,
+          String.format(condition, splitColumn, prev, b)));
+
+      prev = b;
+    }
+
+    // add last partition
+    queries.add(String.format(queryFormat, String.format(" AND %s >= %s", splitColumn, prev)));
+
+    return queries;
   }
 
   /**
@@ -208,18 +348,22 @@ public abstract class QueryBuilderArgs implements Serializable {
    * executed.
    */
   protected static Iterable<String> queriesForBounds(long min, long max, int parallelism,
-      String splitColumn,
-      String queryFormat) {
+                                                     String splitColumn,
+                                                     String queryFormat) {
+
     // We try not to generate more than queryParallelism. Hence we don't want to loose number by
     // rounding down. Also when queryParallelism is higher than max - min, we don't want 0 queries
     long bucketSize = (long) Math.ceil((double) (max - min) / (double) parallelism);
     bucketSize =
         bucketSize == 0 ? 1 : bucketSize; // If max and min is same, we export only 1 query
+
     List<String> queries = new ArrayList<>(parallelism);
 
     String parallelismCondition;
     long i = min;
     while (i + bucketSize < max) {
+
+      LOGGER.info("Creating query lower bound :: {}", i);
 
       // Include lower bound and exclude the upper bound.
       parallelismCondition =
@@ -254,5 +398,5 @@ public abstract class QueryBuilderArgs implements Serializable {
 
     return queries;
   }
-
 }
+

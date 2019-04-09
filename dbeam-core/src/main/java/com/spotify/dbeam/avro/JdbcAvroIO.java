@@ -65,9 +65,12 @@ public class JdbcAvroIO {
   public static PTransform<PCollection<String>, WriteFilesResult<Void>> createWrite(
       String filenamePrefix, String filenameSuffix, Schema schema,
       JdbcAvroArgs jdbcAvroArgs) {
+
     filenamePrefix = filenamePrefix.replaceAll("/+$", "") + "/part";
+
     ValueProvider<ResourceId> prefixProvider =
         StaticValueProvider.of(FileBasedSink.convertToFileResourceIfPossible(filenamePrefix));
+
     FileBasedSink.FilenamePolicy filenamePolicy =
         DefaultFilenamePolicy.fromStandardParameters(
             prefixProvider,
@@ -80,10 +83,12 @@ public class JdbcAvroIO {
         AvroIO.constantDestinations(filenamePolicy, schema, ImmutableMap.of(),
                                     jdbcAvroArgs.getCodecFactory(),
                                     SerializableFunctions.identity());
+
     final FileBasedSink<String, Void, String> sink = new JdbcAvroSink<>(
         prefixProvider,
         destinations,
         jdbcAvroArgs);
+
     return WriteFiles.to(sink);
   }
 
@@ -97,6 +102,7 @@ public class JdbcAvroIO {
                             DynamicAvroDestinations<UserT, Void, String> dynamicDestinations,
                             JdbcAvroArgs jdbcAvroArgs) {
       super(filenamePrefix, dynamicDestinations, Compression.UNCOMPRESSED);
+
       this.dynamicDestinations = dynamicDestinations;
       this.jdbcAvroArgs = jdbcAvroArgs;
     }
@@ -154,14 +160,17 @@ public class JdbcAvroIO {
     protected void prepareWrite(WritableByteChannel channel) throws Exception {
       logger.info("jdbcavroio : Preparing write...");
       connection = jdbcAvroArgs.jdbcConnectionConfiguration().createConnection();
+
       Void destination = getDestination();
       CodecFactory codec = dynamicDestinations.getCodec(destination);
       Schema schema = dynamicDestinations.getSchema(destination);
+
       dataFileWriter = new DataFileWriter<>(new GenericDatumWriter<GenericRecord>(schema))
           .setCodec(codec)
           .setSyncInterval(syncInterval);
       dataFileWriter.setMeta("created_by", this.getClass().getCanonicalName());
       dataFileWriter.create(schema, Channels.newOutputStream(channel));
+
       this.metering = JdbcAvroMetering.create();
       logger.info("jdbcavroio : Write prepared");
     }
@@ -191,21 +200,29 @@ public class JdbcAvroIO {
     public void write(String query) throws Exception {
       checkArgument(dataFileWriter != null,
                     "Avro DataFileWriter was not properly created");
+
+      logger.info("Running query :: {}", query);
+
       logger.info("jdbcavroio : Starting write...");
       Schema schema = dynamicDestinations.getSchema(getDestination());
       try (ResultSet resultSet = executeQuery(query)) {
         checkArgument(resultSet != null,
                       "JDBC resultSet was not properly created");
+
         final Map<Integer, JdbcAvroRecord.SqlFunction<ResultSet, Object>>
             mappings = JdbcAvroRecord.computeAllMappings(resultSet);
+
         final int columnCount = resultSet.getMetaData().getColumnCount();
+
         long startMs = metering.startWriteMeter();
+
         while (resultSet.next()) {
           final GenericRecord genericRecord = JdbcAvroRecord.convertResultSetIntoAvroRecord(
               schema, resultSet, mappings, columnCount);
           this.dataFileWriter.append(genericRecord);
           this.metering.incrementRecordCount();
         }
+
         this.dataFileWriter.sync();
         this.metering.exposeWriteElapsedMs(System.currentTimeMillis() - startMs);
       }

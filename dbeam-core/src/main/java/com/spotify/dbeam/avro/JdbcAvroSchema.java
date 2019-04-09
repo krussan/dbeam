@@ -62,32 +62,53 @@ public class JdbcAvroSchema {
   private static Logger LOGGER = LoggerFactory.getLogger(JdbcAvroSchema.class);
 
   public static Schema createSchemaByReadingOneRow(
-      Connection connection, String tableName, String avroSchemaNamespace,
-      String avroDoc, boolean useLogicalTypes)
+      Connection connection,
+      String tableName,
+      String avroSchemaNamespace,
+      String avroDoc,
+      boolean useLogicalTypes)
       throws SQLException {
+
     LOGGER.debug("Creating Avro schema based on the first read row from the database");
+
+    JdbcQueries queries = JdbcQueries.create(connection.getMetaData().getURL());
+
     try (Statement statement = connection.createStatement()) {
       final ResultSet
           resultSet =
-          statement.executeQuery(String.format("SELECT * FROM %s LIMIT 1", tableName));
+          statement.executeQuery(String.format(queries.getOneRowSql(), tableName));
 
       Schema schema = JdbcAvroSchema.createAvroSchema(
           resultSet, avroSchemaNamespace, connection.getMetaData().getURL(), avroDoc,
-          useLogicalTypes);
+          useLogicalTypes, tableName);
+
       LOGGER.info("Schema created successfully. Generated schema: {}", schema.toString());
+
       return schema;
     }
   }
 
   public static Schema createAvroSchema(
       ResultSet resultSet, String avroSchemaNamespace, String connectionUrl,
-      String avroDoc, boolean useLogicalTypes)
+      String avroDoc, boolean useLogicalTypes, String queryTableName)
       throws SQLException {
     ResultSetMetaData meta = resultSet.getMetaData();
     String tableName = "no_table_name";
 
+    LOGGER.info("Query table name :: {}", queryTableName);
+    LOGGER.info("Metadata column count :: {}", meta.getColumnCount());
+
     if (meta.getColumnCount() > 0) {
-      tableName = normalizeForAvro(meta.getTableName(1));
+      String metaTableName = meta.getTableName(1);
+      if (!metaTableName.isEmpty()) {
+        tableName = metaTableName;
+      } else if (!queryTableName.isEmpty()) {
+        tableName = queryTableName;
+      }
+
+      tableName = normalizeForAvro(tableName);
+
+      LOGGER.info("Table name from metadata :: {}", tableName);
     }
     SchemaBuilder.FieldAssembler<Schema> builder = SchemaBuilder.record(tableName)
         .namespace(avroSchemaNamespace)

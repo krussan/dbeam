@@ -43,7 +43,7 @@ class PsqlReplicationCheckTest extends FlatSpec with Matchers with BeforeAndAfte
           .withUsername("dbeam-extractor")
           .withPassword("secret")
       ),
-      QueryBuilderArgs.create("some_table")
+      QueryBuilderArgs.create("some_table", ".*")
     )
 
     a[IllegalArgumentException] should be thrownBy {
@@ -58,7 +58,7 @@ class PsqlReplicationCheckTest extends FlatSpec with Matchers with BeforeAndAfte
           .withUsername("dbeam-extractor")
           .withPassword("secret")
       ),
-      QueryBuilderArgs.create("some_table")
+      QueryBuilderArgs.create("some_table", ".*")
     )
 
     a[IllegalArgumentException] should be thrownBy {
@@ -73,7 +73,7 @@ class PsqlReplicationCheckTest extends FlatSpec with Matchers with BeforeAndAfte
           .withUsername("dbeam-extractor")
           .withPassword("secret")
       ),
-      QueryBuilderArgs.create("some_table")
+      QueryBuilderArgs.create("some_table", ".*")
         .builder()
         .setPartition(new DateTime(2027, 7, 31, 0, 0, DateTimeZone.UTC)).build()
     )
@@ -136,7 +136,7 @@ class PsqlReplicationCheckTest extends FlatSpec with Matchers with BeforeAndAfte
       JdbcExportArgs.create(
         JdbcAvroArgs.create(
           JdbcConnectionArgs.create(connectionUrl)),
-        QueryBuilderArgs.create("coffees").builder()
+        QueryBuilderArgs.create("coffees", ".*").builder()
           .setPartition(DateTime.parse("2025-02-28T00:00:00"))
           .build()),
       query
@@ -161,7 +161,7 @@ class PsqlReplicationCheckTest extends FlatSpec with Matchers with BeforeAndAfte
       JdbcExportArgs.create(
         JdbcAvroArgs.create(
           JdbcConnectionArgs.create(connectionUrl)),
-        QueryBuilderArgs.create("coffees").builder()
+        QueryBuilderArgs.create("coffees", ".*").builder()
           .setPartition(DateTime.parse("2025-02-28T00:00:00"))
           .build()),
       query

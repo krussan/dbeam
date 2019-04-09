@@ -103,4 +103,11 @@ public interface JdbcExportPipelineOptions extends DBeamPipelineOptions {
   Integer getQueryParallelism();
 
   void setQueryParallelism(Integer value);
+
+  @Description(
+      "Set this to try to distribute the workload evenly between the partitions")
+  String getEvenDistribution();
+
+  void setEvenDistribution(String value);
+
 }

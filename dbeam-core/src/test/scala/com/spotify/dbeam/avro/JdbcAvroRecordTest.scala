@@ -145,7 +145,8 @@ class JdbcAvroRecordTest extends FlatSpec with Matchers with BeforeAndAfterAll {
 
   it should "convert jdbc result set to avro generic record" in {
     val rs = db.source.createConnection().createStatement().executeQuery(s"SELECT * FROM coffees")
-    val schema = JdbcAvroSchema.createAvroSchema(rs, "dbeam_generated","connection", "doc", false)
+    val schema = JdbcAvroSchema.createAvroSchema(rs, "dbeam_generated","connection", "doc",
+      false, "coffees")
     rs.next()
 
     val mappings = JdbcAvroRecord.computeAllMappings(rs)

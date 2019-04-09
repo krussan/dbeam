@@ -25,6 +25,7 @@ import com.spotify.dbeam.args.JdbcAvroArgs;
 import com.spotify.dbeam.args.JdbcConnectionArgs;
 import com.spotify.dbeam.args.JdbcExportArgs;
 import com.spotify.dbeam.args.QueryBuilderArgs;
+import com.spotify.dbeam.avro.JdbcQueries;
 import java.io.IOException;
 import java.util.Optional;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -33,12 +34,20 @@ import org.joda.time.Days;
 import org.joda.time.Period;
 import org.joda.time.ReadablePeriod;
 import org.joda.time.format.ISODateTimeFormat;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class JdbcExportArgsFactory {
+  private static final Logger LOGGER = LoggerFactory.getLogger(JdbcExportArgsFactory.class);
 
   public static JdbcExportArgs fromPipelineOptions(PipelineOptions options)
       throws ClassNotFoundException, IOException {
+
     final JdbcExportPipelineOptions exportOptions = options.as(JdbcExportPipelineOptions.class);
+
+    LOGGER.info("ExportArgs :: {}", exportOptions);
+
+
     final JdbcAvroArgs jdbcAvroArgs = JdbcAvroArgs.create(
         JdbcConnectionArgs.create(exportOptions.getConnectionUrl())
             .withUsername(exportOptions.getUsername())
@@ -46,16 +55,23 @@ public class JdbcExportArgsFactory {
         exportOptions.getFetchSize(),
         exportOptions.getAvroCodec());
 
+    LOGGER.info("Url :: {}", jdbcAvroArgs.jdbcConnectionConfiguration().url());
+
+    final JdbcQueries queries =
+        JdbcQueries.create(jdbcAvroArgs.jdbcConnectionConfiguration().url());
+
+
     return JdbcExportArgs.create(
         jdbcAvroArgs,
-        createQueryArgs(exportOptions),
+        createQueryArgs(queries, exportOptions),
         exportOptions.getAvroSchemaNamespace(),
         Optional.ofNullable(exportOptions.getAvroDoc()),
         exportOptions.isUseAvroLogicalTypes()
     );
   }
 
-  public static QueryBuilderArgs createQueryArgs(JdbcExportPipelineOptions options) {
+  public static QueryBuilderArgs createQueryArgs(JdbcQueries queries,
+                                                 JdbcExportPipelineOptions options) {
     final ReadablePeriod partitionPeriod = Optional.ofNullable(options.getPartitionPeriod())
         .map(v -> (ReadablePeriod) Period.parse(v)).orElse(Days.ONE);
     Optional<DateTime> partition = Optional.ofNullable(options.getPartition())
@@ -71,7 +87,7 @@ public class JdbcExportArgsFactory {
           .orElse(DateTime.now().minus(partitionPeriod.toPeriod().multipliedBy(2)));
       partition.map(p -> validatePartition(p, minPartitionDateTime));
     }
-    return QueryBuilderArgs.create(options.getTable())
+    return QueryBuilderArgs.create(options.getTable(), queries.getTableNameRegex())
         .builder()
         .setLimit(Optional.ofNullable(options.getLimit()))
         .setPartitionColumn(partitionColumn)
@@ -79,6 +95,7 @@ public class JdbcExportArgsFactory {
         .setPartitionPeriod(partitionPeriod)
         .setSplitColumn(Optional.ofNullable(options.getSplitColumn()))
         .setQueryParallelism(Optional.ofNullable(options.getQueryParallelism()))
+        .setEvenDistribution(Optional.ofNullable(options.getEvenDistribution()))
         .build();
   }
 
