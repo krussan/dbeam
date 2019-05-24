@@ -110,4 +110,10 @@ public interface JdbcExportPipelineOptions extends DBeamPipelineOptions {
 
   void setEvenDistribution(String value);
 
+  @Default.String("PT0S")
+  @Description(
+      "Export timeout, after this duration the export will be terminated.")
+  String getExportTimeout();
+
+  void setExportTimeout(String value);
 }
