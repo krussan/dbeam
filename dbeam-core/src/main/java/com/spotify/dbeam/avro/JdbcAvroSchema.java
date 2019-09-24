@@ -29,6 +29,7 @@ import static java.sql.Types.BOOLEAN;
 import static java.sql.Types.CHAR;
 import static java.sql.Types.CLOB;
 import static java.sql.Types.DATE;
+import static java.sql.Types.DECIMAL;
 import static java.sql.Types.DOUBLE;
 import static java.sql.Types.FLOAT;
 import static java.sql.Types.INTEGER;
@@ -36,6 +37,7 @@ import static java.sql.Types.LONGNVARCHAR;
 import static java.sql.Types.LONGVARBINARY;
 import static java.sql.Types.LONGVARCHAR;
 import static java.sql.Types.NCHAR;
+import static java.sql.Types.NUMERIC;
 import static java.sql.Types.REAL;
 import static java.sql.Types.SMALLINT;
 import static java.sql.Types.TIME;
@@ -195,6 +197,8 @@ public class JdbcAvroSchema {
       case ARRAY:
       case BLOB:
         return field.bytesType().endUnion().nullDefault();
+      case NUMERIC:
+      case DECIMAL:
       case DOUBLE:
         return field.doubleType().endUnion().nullDefault();
       case FLOAT:
