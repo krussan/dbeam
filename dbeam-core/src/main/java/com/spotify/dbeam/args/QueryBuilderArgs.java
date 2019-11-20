@@ -326,7 +326,7 @@ public abstract class QueryBuilderArgs implements Serializable {
                                                       String queryFormat) {
 
     List<String> queries = new ArrayList<>();
-    long prev = 0;
+    long prev = Long.MIN_VALUE;
 
     for (long b : bounds) {
       String condition = " AND %1$s >= %2$s AND %1$s < %3$s ";

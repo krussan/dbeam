@@ -124,6 +124,7 @@ public class JdbcAvroSchema {
   private static SchemaBuilder.FieldAssembler<Schema> createAvroFields(
       ResultSetMetaData meta, SchemaBuilder.FieldAssembler<Schema> builder, boolean useLogicalTypes)
       throws SQLException {
+
     for (int i = 1; i <= meta.getColumnCount(); i++) {
 
       String columnName;
@@ -141,6 +142,7 @@ public class JdbcAvroSchema {
           .prop("columnName", columnName)
           .prop("sqlCode", String.valueOf(columnType))
           .prop("typeName", typeName);
+
       fieldAvroType(columnType, meta.getPrecision(i), field, useLogicalTypes);
     }
     return builder;
