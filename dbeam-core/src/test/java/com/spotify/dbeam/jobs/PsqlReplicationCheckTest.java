@@ -28,6 +28,8 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.Period;
 import java.util.Optional;
+
+import com.spotify.dbeam.dialects.MysqlDialect;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -51,7 +53,7 @@ public class PsqlReplicationCheckTest {
   @Test(expected = IllegalArgumentException.class)
   public void shouldFailOnInvalidDriver() throws ClassNotFoundException {
     JdbcExportArgs args = createArgs("jdbc:mysql://some_db",
-                                     QueryBuilderArgs.create("some_table"));
+                                     QueryBuilderArgs.create("some_table", new MysqlDialect() ));
 
     PsqlReplicationCheck.validateOptions(args);
   }
@@ -59,7 +61,7 @@ public class PsqlReplicationCheckTest {
   @Test(expected = IllegalArgumentException.class)
   public void shouldFailOnMissingPartition() throws ClassNotFoundException {
     JdbcExportArgs args = createArgs("jdbc:postgresql://some_db",
-                                     QueryBuilderArgs.create("some_table"));
+                                     QueryBuilderArgs.create("some_table", new MysqlDialect()));
 
     PsqlReplicationCheck.validateOptions(args);
   }
@@ -67,7 +69,7 @@ public class PsqlReplicationCheckTest {
   @Test
   public void shouldSucceedOnValidDriverAndPartition() throws ClassNotFoundException {
     final JdbcExportArgs args = createArgs("jdbc:postgresql://some_db",
-                                              QueryBuilderArgs.create("coffees").builder()
+                                              QueryBuilderArgs.create("coffees", new MysqlDialect()).builder()
                                                   .setPartition(
                                                       Instant.parse("2025-02-28T00:00:00Z"))
                                                   .build());
@@ -142,7 +144,7 @@ public class PsqlReplicationCheckTest {
         + "13 AS replication_delay";
     PsqlReplicationCheck replicationCheck = new PsqlReplicationCheck(
         createArgs(CONNECTION_URL,
-                         QueryBuilderArgs.create("coffees").builder()
+                         QueryBuilderArgs.create("coffees", new MysqlDialect()).builder()
                                              .setPartition(Instant.parse("2025-02-28T00:00:00Z"))
                                              .build()), query);
     Instant expectedLastReplication = Instant.parse("2017-02-01T23:58:57Z");
@@ -162,7 +164,7 @@ public class PsqlReplicationCheckTest {
         + "13 AS replication_delay";
     PsqlReplicationCheck replicationCheck = new PsqlReplicationCheck(
         createArgs(CONNECTION_URL,
-                         QueryBuilderArgs.create("coffees").builder()
+                         QueryBuilderArgs.create("coffees", new MysqlDialect()).builder()
                                              .setPartition(Instant.parse("2025-02-28T00:00:00Z"))
                                              .build()), query);
     Instant expectedLastReplication = Instant.parse("2030-02-01T23:58:57Z");

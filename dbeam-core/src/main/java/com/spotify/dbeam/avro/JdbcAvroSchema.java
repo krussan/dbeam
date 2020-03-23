@@ -52,6 +52,8 @@ import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
+
+import com.spotify.dbeam.dialects.SqlDialect;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
 import org.slf4j.Logger;
@@ -63,10 +65,10 @@ public class JdbcAvroSchema {
 
   public static Schema createSchemaByReadingOneRow(
           Connection connection, String tablename, String avroSchemaNamespace,
-          String avroDoc, boolean useLogicalTypes)
+          String avroDoc, boolean useLogicalTypes, SqlDialect dialect)
       throws SQLException {
     return createSchemaByReadingOneRow(
-            connection, QueryBuilder.fromTablename(tablename),
+            connection, QueryBuilder.fromTablename(tablename, dialect),
             avroSchemaNamespace, avroDoc, useLogicalTypes);
   }
 

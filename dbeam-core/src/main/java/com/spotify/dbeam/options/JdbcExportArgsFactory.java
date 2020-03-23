@@ -68,7 +68,6 @@ public class JdbcExportArgsFactory {
 
     LOGGER.info("ExportArgs :: {}", exportOptions);
 
-
     final JdbcAvroArgs jdbcAvroArgs = JdbcAvroArgs.create(
         JdbcConnectionArgs.create(exportOptions.getConnectionUrl())
             .withUsername(exportOptions.getUsername())
@@ -93,52 +92,7 @@ public class JdbcExportArgsFactory {
     );
   }
 
-  public static QueryBuilderArgs createQueryArgs(SqlDialect dialect,
-                                                 JdbcExportPipelineOptions options) {
-    final Period partitionPeriod = Optional.ofNullable(options.getPartitionPeriod())
-        .map(Period::parse).orElse(Period.ofDays(1));
-    Optional<Instant> partition = Optional.ofNullable(options.getPartition())
-        .map(JdbcExportArgsFactory::parseInstant);
-    Optional<String> partitionColumn = Optional.ofNullable(options.getPartitionColumn());
-    checkArgument(
-        !partitionColumn.isPresent() || partition.isPresent(),
-        "To use --partitionColumn the --partition parameter must also be configured");
-
-    if (!(options.isSkipPartitionCheck() || partitionColumn.isPresent())) {
-      Instant minPartitionDateTime = Optional.ofNullable(options.getMinPartitionPeriod())
-          .map(JdbcExportArgsFactory::parseInstant)
-          // given Instant does not support operations with ChronoUnit.MONTHS
-          .orElse(
-              Instant.now()
-                .atOffset(ZoneOffset.UTC)
-                .minus(partitionPeriod.multipliedBy(2))
-                .toInstant()
-              );
-      partition.map(p -> validatePartition(p, minPartitionDateTime));
-    }
-
-    final Optional<String> splitColumn = Optional.ofNullable(options.getSplitColumn());
-    final Optional<Integer> queryParallelism = Optional.ofNullable(options.getQueryParallelism());
-    checkArgument(queryParallelism.isPresent() == splitColumn.isPresent(),
-                  "Either both --queryParallelism and --splitColumn must be present or "
-                  + "none of them");
-    queryParallelism.ifPresent(p -> checkArgument(
-        p > 0,
-        "Query Parallelism must be a positive number. Specified queryParallelism was %s", p));
-
-    return createQueryBuilderArgs(options, dialect)
-        .builder()
-        .setLimit(Optional.ofNullable(options.getLimit()))
-        .setPartitionColumn(partitionColumn)
-        .setPartition(partition)
-        .setPartitionPeriod(partitionPeriod)
-        .setSplitColumn(splitColumn)
-        .setQueryParallelism(queryParallelism)
-        .setEvenDistribution(Optional.ofNullable(options.getEvenDistribution()))
-        .build();
-  }
-
-  private static QueryBuilderArgs createQueryBuilderArgs(JdbcExportPipelineOptions options, SqlDialect dialect) {
+  private static QueryBuilderArgs createQueryBuilderArgs(JdbcExportPipelineOptions options, SqlDialect dialect) throws IOException {
     checkArgument((options.getTable() != null) != (options.getSqlFile() != null),
             "Either --table or --sqlFile must be present");
 
@@ -148,6 +102,51 @@ public class JdbcExportArgsFactory {
     } else {
       return QueryBuilderArgs.create(options.getTable(), dialect);
     }
+  }
+
+  public static QueryBuilderArgs createQueryArgs(SqlDialect dialect,
+                                                 JdbcExportPipelineOptions options) throws IOException {
+    final Period partitionPeriod = Optional.ofNullable(options.getPartitionPeriod())
+            .map(Period::parse).orElse(Period.ofDays(1));
+    Optional<Instant> partition = Optional.ofNullable(options.getPartition())
+            .map(JdbcExportArgsFactory::parseInstant);
+    Optional<String> partitionColumn = Optional.ofNullable(options.getPartitionColumn());
+    checkArgument(
+            !partitionColumn.isPresent() || partition.isPresent(),
+            "To use --partitionColumn the --partition parameter must also be configured");
+
+    if (!(options.isSkipPartitionCheck() || partitionColumn.isPresent())) {
+      Instant minPartitionDateTime = Optional.ofNullable(options.getMinPartitionPeriod())
+              .map(JdbcExportArgsFactory::parseInstant)
+              // given Instant does not support operations with ChronoUnit.MONTHS
+              .orElse(
+                      Instant.now()
+                              .atOffset(ZoneOffset.UTC)
+                              .minus(partitionPeriod.multipliedBy(2))
+                              .toInstant()
+              );
+      partition.map(p -> validatePartition(p, minPartitionDateTime));
+    }
+
+    final Optional<String> splitColumn = Optional.ofNullable(options.getSplitColumn());
+    final Optional<Integer> queryParallelism = Optional.ofNullable(options.getQueryParallelism());
+    checkArgument(queryParallelism.isPresent() == splitColumn.isPresent(),
+            "Either both --queryParallelism and --splitColumn must be present or "
+                    + "none of them");
+    queryParallelism.ifPresent(p -> checkArgument(
+            p > 0,
+            "Query Parallelism must be a positive number. Specified queryParallelism was %s", p));
+
+    return createQueryBuilderArgs(options, dialect)
+            .builder()
+            .setLimit(Optional.ofNullable(options.getLimit()))
+            .setPartitionColumn(partitionColumn)
+            .setPartition(partition)
+            .setPartitionPeriod(partitionPeriod)
+            .setSplitColumn(splitColumn)
+            .setQueryParallelism(queryParallelism)
+            .setEvenDistribution(Optional.ofNullable(options.getEvenDistribution()))
+            .build();
   }
 
   public static Instant parseInstant(String v) {

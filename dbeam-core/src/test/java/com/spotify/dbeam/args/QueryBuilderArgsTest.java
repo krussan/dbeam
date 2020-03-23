@@ -23,6 +23,7 @@ package com.spotify.dbeam.args;
 import com.google.common.collect.Lists;
 import com.spotify.dbeam.DbTestHelper;
 import com.spotify.dbeam.TestHelper;
+import com.spotify.dbeam.dialects.MysqlDialect;
 import com.spotify.dbeam.options.JdbcExportArgsFactory;
 import com.spotify.dbeam.options.JdbcExportPipelineOptions;
 import java.io.IOException;
@@ -72,23 +73,23 @@ public class QueryBuilderArgsTest {
 
   @Test(expected = IllegalArgumentException.class)
   public void shouldFailOnNullTableName() {
-    QueryBuilderArgs.create(null);
+    QueryBuilderArgs.create(null, null);
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void shouldFailOnInvalidTableName() {
-    QueryBuilderArgs.create("*invalid#name@!");
+    QueryBuilderArgs.create("*invalid#name@!", new MysqlDialect());
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void shouldFailOnTableNameWithDots() {
-    QueryBuilderArgs.create("foo.bar");
+    QueryBuilderArgs.create("foo.bar", new MysqlDialect());
   }
 
   @Test
   public void shouldCreateValidSqlQueryFromUserQuery() {
     QueryBuilderArgs args =
-        QueryBuilderArgs.create("some_table", "SELECT * FROM some_table");
+        QueryBuilderArgs.create("some_table", new MysqlDialect(), "SELECT * FROM some_table");
 
     Assert.assertEquals("some_table", args.tableName());
     Assert.assertEquals(
@@ -281,7 +282,7 @@ public class QueryBuilderArgsTest {
 
   private QueryBuilderArgs pareOptions(String cmdLineArgs) throws IOException {
     JdbcExportPipelineOptions opts = commandLineToOptions(cmdLineArgs);
-    return JdbcExportArgsFactory.createQueryArgs(opts);
+    return JdbcExportArgsFactory.createQueryArgs(new MysqlDialect(), opts);
   }
 
   public static JdbcExportPipelineOptions commandLineToOptions(final String cmdLineArgs) {

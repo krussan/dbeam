@@ -21,7 +21,13 @@
 package com.spotify.dbeam.dialects;
 
 public abstract class SqlDialect {
-  public abstract String getOneRowSql();
+  public enum LimitPosition {
+    AFTER_SELECT,
+    LAST
+  }
+
+  public abstract LimitPosition getTopLimitPosition();
+  public abstract String getLimitKeyword();
 
   public abstract String getTableNameRegex();
 

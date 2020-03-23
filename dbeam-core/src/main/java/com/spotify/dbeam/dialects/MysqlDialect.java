@@ -23,8 +23,13 @@ package com.spotify.dbeam.dialects;
 public class MysqlDialect extends SqlDialect {
 
   @Override
-  public String getOneRowSql() {
-    return "SELECT * FROM %s LIMIT 1";
+  public LimitPosition getTopLimitPosition() {
+    return LimitPosition.LAST;
+  }
+
+  @Override
+  public String getLimitKeyword() {
+    return "LIMIT";
   }
 
   @Override

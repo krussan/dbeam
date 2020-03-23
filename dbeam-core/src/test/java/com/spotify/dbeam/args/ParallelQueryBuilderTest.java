@@ -26,6 +26,7 @@ import com.google.common.collect.Lists;
 
 import java.util.List;
 
+import com.spotify.dbeam.dialects.MysqlDialect;
 import org.hamcrest.Matchers;
 import org.junit.Assert;
 import org.junit.Ignore;
@@ -35,7 +36,7 @@ import org.junit.Test;
 public class ParallelQueryBuilderTest {
 
   private static String QUERY_BASE = "SELECT * FROM tab WHERE 1=1";
-  private static QueryBuilder QUERY_FORMAT = QueryBuilder.fromTablename("tab");
+  private static QueryBuilder QUERY_FORMAT = QueryBuilder.fromTablename("tab", new MysqlDialect());
 
   @Test
   public void shouldBuildParallelQueriesGivenRangeAndParallelism3() {

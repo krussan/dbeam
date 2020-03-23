@@ -263,7 +263,7 @@ public class ParallelQueryBuilder implements Serializable {
   }
 
 
-  protected static Iterable<String> queriesForEvenDistribution(Iterable<Long> bounds,
+  protected static List<String> queriesForEvenDistribution(Iterable<Long> bounds,
                                                       String splitColumn,
                                                       QueryBuilder queryBuilder) {
 

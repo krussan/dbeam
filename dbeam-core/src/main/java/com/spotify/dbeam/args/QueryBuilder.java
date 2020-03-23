@@ -20,10 +20,14 @@
 
 package com.spotify.dbeam.args;
 
+import com.spotify.dbeam.dialects.SqlDialect;
+
 import java.io.Serializable;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Wrapper class for raw SQL query.
@@ -119,9 +123,11 @@ public class QueryBuilder implements Serializable {
   private Optional<String> limitStr = Optional.empty();
   private Optional<String> groupByStr = Optional.empty();
   private Optional<String> orderByStr = Optional.empty();
+  private SqlDialect dialect;
   
-  private QueryBuilder(final QueryBase base) {
+  private QueryBuilder(final QueryBase base, final SqlDialect dialect) {
     this.base = base;
+    this.dialect = dialect;
   }
 
   private QueryBuilder(final QueryBase base, final QueryBuilder that) {
@@ -130,6 +136,7 @@ public class QueryBuilder implements Serializable {
     this.limitStr = that.limitStr;
     this.groupByStr = that.groupByStr;
     this.orderByStr = that.orderByStr;
+    this.dialect = that.dialect;
   }
 
   private QueryBuilder(final QueryBuilder that) {
@@ -138,18 +145,19 @@ public class QueryBuilder implements Serializable {
     this.limitStr = that.limitStr;
     this.groupByStr = that.groupByStr;
     this.orderByStr = that.orderByStr;
+    this.dialect = that.dialect;
   }
 
   public QueryBuilder copy() {
     return new QueryBuilder(this);
   }
 
-  public static QueryBuilder fromTablename(final String tableName) {
-    return new QueryBuilder(new TableQueryBase(tableName));
+  public static QueryBuilder fromTablename(final String tableName, final SqlDialect dialect) {
+    return new QueryBuilder(new TableQueryBase(tableName), dialect);
   }
 
-  public static QueryBuilder fromSqlQuery(final String sqlQuery) {
-    return new QueryBuilder(new UserQueryBase(sqlQuery));
+  public static QueryBuilder fromSqlQuery(final String sqlQuery, final SqlDialect dialect) {
+    return new QueryBuilder(new UserQueryBase(sqlQuery), dialect);
   }
 
   public QueryBuilder withPartitionCondition(
@@ -187,12 +195,26 @@ public class QueryBuilder implements Serializable {
    * @return generated SQL query string.
    */
   public String build() {
-    String initial = base.getBaseSql();
+    String initial = replaceInitialSelect(base.getBaseSql());
     StringBuilder buffer = new StringBuilder(initial);
     whereConditions.forEach(buffer::append);
-    limitStr.ifPresent(buffer::append);
+
+    if (this.dialect.getTopLimitPosition() == SqlDialect.LimitPosition.LAST) {
+      limitStr.ifPresent(buffer::append);
+    }
 
     return buffer.toString();
+  }
+
+  private String replaceInitialSelect(String initial) {
+    if (this.dialect.getTopLimitPosition() == SqlDialect.LimitPosition.AFTER_SELECT) {
+      Pattern p = Pattern.compile("^SELECT\\s*", Pattern.CASE_INSENSITIVE);
+      Matcher m = p.matcher(initial);
+      return m.replaceFirst(String.format("SELECT %s ", limitStr));
+    }
+    else {
+      return initial;
+    }
   }
 
   private static String removeTrailingSymbols(String sqlQuery) {
@@ -284,7 +306,7 @@ public class QueryBuilder implements Serializable {
             "SELECT %s, COUNT(1) AS cnt",
             splitColumn);
 
-    return new QueryBuilder(base.copyWithSelect(select))
+    return new QueryBuilder(base.copyWithSelect(select), this.dialect)
             .withGroupBy(splitColumn)
             .withOrderBy(splitColumn);
   }

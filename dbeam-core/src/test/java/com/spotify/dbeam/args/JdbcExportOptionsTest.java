@@ -20,6 +20,7 @@
 
 package com.spotify.dbeam.args;
 
+import com.spotify.dbeam.dialects.MysqlDialect;
 import com.spotify.dbeam.options.JdbcExportArgsFactory;
 import com.spotify.dbeam.options.JdbcExportPipelineOptions;
 
@@ -98,6 +99,7 @@ public class JdbcExportOptionsTest {
         ),
         QueryBuilderArgs.create(
             "user_based_query",
+            new MysqlDialect(),
             com.google.common.io.Files.asCharSource(sqlFile, StandardCharsets.UTF_8).read()
         )
     );
@@ -117,7 +119,7 @@ public class JdbcExportOptionsTest {
             JdbcConnectionArgs.create("jdbc:postgresql://some_db")
                 .withUsername("dbeam-extractor")
         ),
-        QueryBuilderArgs.create("some_table")
+        QueryBuilderArgs.create("some_table", new MysqlDialect())
     );
 
     Assert.assertEquals(expected, actual);
@@ -133,7 +135,7 @@ public class JdbcExportOptionsTest {
             JdbcConnectionArgs.create("jdbc:mysql://some_db")
                 .withUsername("dbeam-extractor")
         ),
-        QueryBuilderArgs.create("some_table")
+        QueryBuilderArgs.create("some_table", new MysqlDialect())
     );
 
     Assert.assertEquals(expected, actual);
@@ -198,7 +200,7 @@ public class JdbcExportOptionsTest {
                 .withUsername("someuser")
                 .withPassword("somepassword")
         ),
-        QueryBuilderArgs.create("some_table")
+        QueryBuilderArgs.create("some_table", new MysqlDialect())
     );
 
     Assert.assertEquals(expected, actual);

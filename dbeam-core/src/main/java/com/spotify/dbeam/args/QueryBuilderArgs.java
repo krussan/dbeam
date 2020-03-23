@@ -127,7 +127,7 @@ public abstract class QueryBuilderArgs implements Serializable {
     return new AutoValue_QueryBuilderArgs.Builder()
         .setTableName(tableName)
         .setDialect(dialect)
-        .setBaseSqlQuery(QueryBuilder.fromTablename(tableName))
+        .setBaseSqlQuery(QueryBuilder.fromTablename(tableName, dialect))
         .setPartitionPeriod(Period.ofDays(1));
   }
 
@@ -137,7 +137,7 @@ public abstract class QueryBuilderArgs implements Serializable {
 
   public static QueryBuilderArgs create(String tableName, SqlDialect dialect, String sqlQueryOpt) {
     return QueryBuilderArgs.builderForTableName(tableName, dialect)
-        .setBaseSqlQuery(QueryBuilder.fromSqlQuery(sqlQueryOpt))
+        .setBaseSqlQuery(QueryBuilder.fromSqlQuery(sqlQueryOpt, dialect))
         .build();
   }
 
@@ -172,29 +172,28 @@ public abstract class QueryBuilderArgs implements Serializable {
     if (queryParallelism().isPresent() && splitColumn().isPresent()) {
       LOGGER.info("Creating parallelism queries");
 
-      this.evenDistribution().ifPresent(x -> {
-          LOGGER.info("Creating even distribution queries");
-          String dist = evenDistribution().get();
+      if (this.evenDistribution().isPresent()) {
+        LOGGER.info("Creating even distribution queries");
+        String dist = evenDistribution().get();
 
-          if (dist.equalsIgnoreCase("even") || dist.equalsIgnoreCase("true")) {
-              Iterable<Long> bounds = findDistributionBounds(
-                      connection,
-                      this.queryParallelism().get(),
-                      this.baseSqlQuery(),
-                      splitColumn().get());
+        if (dist.equalsIgnoreCase("even") || dist.equalsIgnoreCase("true")) {
+          Iterable<Long> bounds = findDistributionBounds(
+                  connection,
+                  this.queryParallelism().get(),
+                  this.baseSqlQuery(),
+                  splitColumn().get());
 
-            return queriesForEvenDistribution(bounds, splitColumn().get(), this.baseSqlQuery());
-          } else if (dist.equalsIgnoreCase("distinct")) {
-            Iterable<Long> bounds = findDistinctDistributionBounds(
-                    connection,
-                    this.queryParallelism().get(),
-                    this.baseSqlQuery(),
-                    splitColumn().get());
+          return queriesForEvenDistribution(bounds, splitColumn().get(), this.baseSqlQuery());
+        } else if (dist.equalsIgnoreCase("distinct")) {
+          Iterable<Long> bounds = findDistinctDistributionBounds(
+                  connection,
+                  this.queryParallelism().get(),
+                  this.baseSqlQuery(),
+                  splitColumn().get());
 
-            return queriesForEvenDistribution(bounds, splitColumn().get(), this.baseSqlQuery());
-          }
+          return queriesForEvenDistribution(bounds, splitColumn().get(), this.baseSqlQuery());
         }
-      );
+      }
 
       LOGGER.info("Creating straight split parallelism");
       long[] minMax = findInputBounds(connection, this.baseSqlQuery(), splitColumn().get());

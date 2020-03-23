@@ -23,8 +23,13 @@ package com.spotify.dbeam.dialects;
 public class SqlServerDialect extends SqlDialect {
 
   @Override
-  public String getOneRowSql() {
-    return "SELECT TOP 1 * FROM %s";
+  public LimitPosition getTopLimitPosition() {
+    return LimitPosition.AFTER_SELECT;
+  }
+
+  @Override
+  public String getLimitKeyword() {
+    return "TOP";
   }
 
   @Override

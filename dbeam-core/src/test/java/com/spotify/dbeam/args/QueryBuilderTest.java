@@ -22,6 +22,8 @@ package com.spotify.dbeam.args;
 
 import java.util.Arrays;
 import java.util.List;
+
+import com.spotify.dbeam.dialects.MysqlDialect;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -29,7 +31,7 @@ public class QueryBuilderTest {
 
   @Test
   public void testCtorFromTable() {
-    QueryBuilder wrapper = QueryBuilder.fromTablename("abc");
+    QueryBuilder wrapper = QueryBuilder.fromTablename("abc", new MysqlDialect());
 
     String expected = "SELECT * FROM abc WHERE 1=1";
 
@@ -38,7 +40,7 @@ public class QueryBuilderTest {
 
   @Test
   public void testCtorRawSqlWithoutWhere() {
-    QueryBuilder wrapper = QueryBuilder.fromSqlQuery("SELECT * FROM t1");
+    QueryBuilder wrapper = QueryBuilder.fromSqlQuery("SELECT * FROM t1", new MysqlDialect());
 
     String expected = "SELECT * FROM (SELECT * FROM t1) as user_sql_query WHERE 1=1";
 
@@ -47,7 +49,7 @@ public class QueryBuilderTest {
 
   @Test
   public void testCtorCopyEquals() {
-    QueryBuilder q1 = QueryBuilder.fromSqlQuery("SELECT * FROM t1");
+    QueryBuilder q1 = QueryBuilder.fromSqlQuery("SELECT * FROM t1", new MysqlDialect());
     QueryBuilder copy = q1.copy();
 
     Assert.assertEquals(q1, copy);
@@ -55,7 +57,7 @@ public class QueryBuilderTest {
 
   @Test
   public void testCtorCopyContentEquals() {
-    QueryBuilder q1 = QueryBuilder.fromSqlQuery("SELECT * FROM t1");
+    QueryBuilder q1 = QueryBuilder.fromSqlQuery("SELECT * FROM t1", new MysqlDialect());
     QueryBuilder copy = q1.copy();
 
     Assert.assertEquals(q1.build(), copy.build());
@@ -63,7 +65,7 @@ public class QueryBuilderTest {
 
   @Test
   public void testCtorCopyWithConditionNotEquals() {
-    QueryBuilder q1 = QueryBuilder.fromSqlQuery("SELECT * FROM t1");
+    QueryBuilder q1 = QueryBuilder.fromSqlQuery("SELECT * FROM t1", new MysqlDialect());
     QueryBuilder copy = q1.copy();
     copy.withPartitionCondition("pary", "20180101", "20180201");
 
@@ -72,7 +74,7 @@ public class QueryBuilderTest {
 
   @Test
   public void testCtorCopyWithLimitNotEquals() {
-    QueryBuilder q1 = QueryBuilder.fromSqlQuery("SELECT * FROM t1");
+    QueryBuilder q1 = QueryBuilder.fromSqlQuery("SELECT * FROM t1", new MysqlDialect());
     QueryBuilder copy = q1.copy();
     copy.withLimit(3L);
 
@@ -81,7 +83,7 @@ public class QueryBuilderTest {
 
   @Test
   public void testCtorRawSqlWithWhere() {
-    QueryBuilder wrapper = QueryBuilder.fromSqlQuery("SELECT * FROM t1 WHERE a > 100");
+    QueryBuilder wrapper = QueryBuilder.fromSqlQuery("SELECT * FROM t1 WHERE a > 100", new MysqlDialect());
 
     String expected = "SELECT * FROM (SELECT * FROM t1 WHERE a > 100) as user_sql_query WHERE 1=1";
 
@@ -90,7 +92,7 @@ public class QueryBuilderTest {
 
   @Test
   public void testRawSqlWithLimit() {
-    QueryBuilder wrapper = QueryBuilder.fromSqlQuery("SELECT * FROM t1");
+    QueryBuilder wrapper = QueryBuilder.fromSqlQuery("SELECT * FROM t1", new MysqlDialect());
     wrapper.withLimit(102L);
 
     String expected = "SELECT * FROM (SELECT * FROM t1) as user_sql_query WHERE 1=1 LIMIT 102";
@@ -100,7 +102,7 @@ public class QueryBuilderTest {
 
   @Test
   public void testRawSqlwithParallelization() {
-    QueryBuilder wrapper = QueryBuilder.fromSqlQuery("SELECT * FROM t1");
+    QueryBuilder wrapper = QueryBuilder.fromSqlQuery("SELECT * FROM t1", new MysqlDialect());
     wrapper.withParallelizationCondition("bucket", 10, 20, true);
 
     String expected = "SELECT * FROM (SELECT * FROM t1) as user_sql_query"
@@ -111,7 +113,7 @@ public class QueryBuilderTest {
 
   @Test
   public void testRawSqlWithPartition() {
-    QueryBuilder wrapper = QueryBuilder.fromSqlQuery("SELECT * FROM t1");
+    QueryBuilder wrapper = QueryBuilder.fromSqlQuery("SELECT * FROM t1", new MysqlDialect());
     wrapper.withPartitionCondition("birthDate", "2018-01-01", "2018-02-01");
 
     String expected =
@@ -127,7 +129,7 @@ public class QueryBuilderTest {
             "SELECT a, b, c FROM t1\n"
             + " WHERE total > 100\n"
             + " AND country = 262\n";
-    QueryBuilder wrapper = QueryBuilder.fromSqlQuery(sqlString);
+    QueryBuilder wrapper = QueryBuilder.fromSqlQuery(sqlString, new MysqlDialect());
 
     String expected =
         "SELECT * FROM (SELECT a, b, c FROM t1\n WHERE total > 100\n AND country = 262\n)"
@@ -142,7 +144,7 @@ public class QueryBuilderTest {
         "-- We perform initial query here\n"
         + "SELECT a, b, c FROM t1\n" 
         + " WHERE total > 100";
-    QueryBuilder wrapper = QueryBuilder.fromSqlQuery(sqlString);
+    QueryBuilder wrapper = QueryBuilder.fromSqlQuery(sqlString, new MysqlDialect());
 
     String expected =
         "SELECT * FROM ("
@@ -164,7 +166,7 @@ public class QueryBuilderTest {
             + "SELECT date, SUM(amount)\n"
             + "FROM active_orders\n"
             + "GROUP BY date\n";
-    QueryBuilder wrapper = QueryBuilder.fromSqlQuery(sqlString);
+    QueryBuilder wrapper = QueryBuilder.fromSqlQuery(sqlString, new MysqlDialect());
 
     String expected =
             "SELECT * FROM ("
@@ -221,7 +223,7 @@ public class QueryBuilderTest {
             + " WHERE 1=1 AND partition >= 'a' AND partition < 'd'";
 
     String actual =
-        QueryBuilder.fromSqlQuery(input)
+        QueryBuilder.fromSqlQuery(input, new MysqlDialect())
             .withPartitionCondition("partition", "a", "d")
             .generateQueryToGetLimitsOfSplitColumn("splitCol", "mixy", "maxy")
             .build();
@@ -229,7 +231,7 @@ public class QueryBuilderTest {
   }
 
   private void execAndCompare(String rawInput, String expected) {
-    String actual = QueryBuilder.fromSqlQuery(rawInput).build();
+    String actual = QueryBuilder.fromSqlQuery(rawInput, new MysqlDialect()).build();
 
     Assert.assertEquals(expected, actual);
   }
