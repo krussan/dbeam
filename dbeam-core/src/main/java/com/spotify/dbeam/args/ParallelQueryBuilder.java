@@ -270,13 +270,13 @@ public class ParallelQueryBuilder implements Serializable {
     List<QueryRange> ranges = generateRanges(bounds);
 
     return ranges.stream()
-            .map(
-                    x ->
-                            queryBuilder
-                                    .copy() // we create a new query here
-                                    .withParallelizationCondition(
-                                            splitColumn, x.getStartPointIncl(), x.getEndPoint(), x.isEndPointExcl())
-                                    .build())
+      .map(
+        x ->
+          queryBuilder
+            .copy() // we create a new query here
+            .withParallelizationCondition(
+              splitColumn, x.getStartPointIncl(), x.getEndPoint(), x.isEndPointExcl())
+                        .build())
             .collect(Collectors.toList());
 
 //    long prev = 0;

@@ -24,12 +24,13 @@ import com.spotify.dbeam.args.JdbcAvroArgs;
 import com.spotify.dbeam.args.JdbcConnectionArgs;
 import com.spotify.dbeam.args.JdbcExportArgs;
 import com.spotify.dbeam.args.QueryBuilderArgs;
+import com.spotify.dbeam.dialects.MysqlDialect;
+
 import java.time.Duration;
 import java.time.Instant;
 import java.time.Period;
 import java.util.Optional;
 
-import com.spotify.dbeam.dialects.MysqlDialect;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -53,7 +54,7 @@ public class PsqlReplicationCheckTest {
   @Test(expected = IllegalArgumentException.class)
   public void shouldFailOnInvalidDriver() throws ClassNotFoundException {
     JdbcExportArgs args = createArgs("jdbc:mysql://some_db",
-                                     QueryBuilderArgs.create("some_table", new MysqlDialect() ));
+                                     QueryBuilderArgs.create("some_table", new MysqlDialect()));
 
     PsqlReplicationCheck.validateOptions(args);
   }
@@ -69,7 +70,9 @@ public class PsqlReplicationCheckTest {
   @Test
   public void shouldSucceedOnValidDriverAndPartition() throws ClassNotFoundException {
     final JdbcExportArgs args = createArgs("jdbc:postgresql://some_db",
-                                              QueryBuilderArgs.create("coffees", new MysqlDialect()).builder()
+                                              QueryBuilderArgs.create(
+                                                      "coffees",
+                                                      new MysqlDialect()).builder()
                                                   .setPartition(
                                                       Instant.parse("2025-02-28T00:00:00Z"))
                                                   .build());

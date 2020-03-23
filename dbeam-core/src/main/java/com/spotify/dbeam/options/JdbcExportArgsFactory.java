@@ -26,8 +26,9 @@ import com.spotify.dbeam.args.JdbcAvroArgs;
 import com.spotify.dbeam.args.JdbcConnectionArgs;
 import com.spotify.dbeam.args.JdbcExportArgs;
 import com.spotify.dbeam.args.QueryBuilderArgs;
-import com.spotify.dbeam.dialects.SqlDialect;
 import com.spotify.dbeam.avro.BeamJdbcAvroSchema;
+import com.spotify.dbeam.dialects.SqlDialect;
+
 import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
@@ -92,7 +93,8 @@ public class JdbcExportArgsFactory {
     );
   }
 
-  private static QueryBuilderArgs createQueryBuilderArgs(JdbcExportPipelineOptions options, SqlDialect dialect) throws IOException {
+  private static QueryBuilderArgs createQueryBuilderArgs(JdbcExportPipelineOptions options,
+                                                         SqlDialect dialect) throws IOException {
     checkArgument((options.getTable() != null) != (options.getSqlFile() != null),
             "Either --table or --sqlFile must be present");
 
@@ -104,8 +106,10 @@ public class JdbcExportArgsFactory {
     }
   }
 
-  public static QueryBuilderArgs createQueryArgs(SqlDialect dialect,
-                                                 JdbcExportPipelineOptions options) throws IOException {
+  public static QueryBuilderArgs createQueryArgs(
+          SqlDialect dialect,
+          JdbcExportPipelineOptions options) throws IOException {
+
     final Period partitionPeriod = Optional.ofNullable(options.getPartitionPeriod())
             .map(Period::parse).orElse(Period.ofDays(1));
     Optional<Instant> partition = Optional.ofNullable(options.getPartition())

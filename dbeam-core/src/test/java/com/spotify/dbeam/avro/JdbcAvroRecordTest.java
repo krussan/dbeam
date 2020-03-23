@@ -24,6 +24,8 @@ import com.google.common.collect.Lists;
 import com.spotify.dbeam.Coffee;
 import com.spotify.dbeam.DbTestHelper;
 import com.spotify.dbeam.TestHelper;
+import com.spotify.dbeam.dialects.MysqlDialect;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -35,7 +37,6 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
-import com.spotify.dbeam.dialects.MysqlDialect;
 import org.apache.avro.Schema;
 import org.apache.avro.file.DataFileReader;
 import org.apache.avro.file.DataFileWriter;
@@ -117,8 +118,9 @@ public class JdbcAvroRecordTest {
     Schema actual = JdbcAvroSchema.createSchemaByReadingOneRow(
         DbTestHelper.createConnection(CONNECTION_URL),
         "COFFEES", "dbeam_generated",
-        "Generate schema from JDBC ResultSet from COFFEES jdbc:h2:mem:test", true,
-            new MysqlDialect());
+        "Generate schema from JDBC ResultSet from COFFEES jdbc:h2:mem:test",
+        true,
+         new MysqlDialect());
 
     Assert.assertEquals(fieldCount, actual.getFields().size());
     Assert.assertEquals("timestamp-millis",

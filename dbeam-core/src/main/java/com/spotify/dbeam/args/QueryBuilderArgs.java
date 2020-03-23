@@ -21,30 +21,30 @@
 package com.spotify.dbeam.args;
 
 import static com.google.common.base.Preconditions.checkArgument;
+
+import static com.spotify.dbeam.args.ParallelQueryBuilder.findDistinctDistributionBounds;
+import static com.spotify.dbeam.args.ParallelQueryBuilder.findDistributionBounds;
 import static com.spotify.dbeam.args.ParallelQueryBuilder.findInputBounds;
 import static com.spotify.dbeam.args.ParallelQueryBuilder.queriesForBounds;
-import static com.spotify.dbeam.args.ParallelQueryBuilder.findDistributionBounds;
 import static com.spotify.dbeam.args.ParallelQueryBuilder.queriesForEvenDistribution;
-import static com.spotify.dbeam.args.ParallelQueryBuilder.findDistinctDistributionBounds;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.collect.Lists;
+
 import com.spotify.dbeam.dialects.SqlDialect;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
 import java.sql.Connection;
-import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.Period;
 import java.time.ZoneOffset;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A POJO describing how to create queries for DBeam exports.

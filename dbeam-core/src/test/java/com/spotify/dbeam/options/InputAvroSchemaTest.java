@@ -20,7 +20,6 @@
 
 package com.spotify.dbeam.options;
 
-import com.spotify.dbeam.args.QueryBuilderArgs;
 import com.spotify.dbeam.args.QueryBuilderArgsTest;
 import com.spotify.dbeam.avro.BeamJdbcAvroSchema;
 import java.io.File;
@@ -35,7 +34,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-import com.spotify.dbeam.dialects.SqlDialect;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaParseException;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -214,16 +212,4 @@ public class InputAvroSchemaTest {
 
     Assert.assertEquals(null, options.getAvroSchemaFilePath());
   }
-
-//  private QueryBuilderArgs pareOptions(String cmdLineArgs) throws IOException {
-//    PipelineOptionsFactory.register(JdbcExportPipelineOptions.class);
-//    JdbcExportPipelineOptions opts =
-//        PipelineOptionsFactory.fromArgs(cmdLineArgs.split(" "))
-//            .withValidation()
-//            .create()
-//            .as(JdbcExportPipelineOptions.class);
-//
-//    return JdbcExportArgsFactory.createQueryArgs(opts);
-//  }
-
 }

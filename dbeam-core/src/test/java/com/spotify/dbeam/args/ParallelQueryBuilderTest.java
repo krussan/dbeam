@@ -23,10 +23,10 @@ package com.spotify.dbeam.args;
 import static java.lang.String.format;
 
 import com.google.common.collect.Lists;
+import com.spotify.dbeam.dialects.MysqlDialect;
 
 import java.util.List;
 
-import com.spotify.dbeam.dialects.MysqlDialect;
 import org.hamcrest.Matchers;
 import org.junit.Assert;
 import org.junit.Ignore;

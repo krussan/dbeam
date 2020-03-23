@@ -20,10 +20,11 @@
 
 package com.spotify.dbeam.args;
 
+import com.spotify.dbeam.dialects.MysqlDialect;
+
 import java.util.Arrays;
 import java.util.List;
 
-import com.spotify.dbeam.dialects.MysqlDialect;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -83,7 +84,9 @@ public class QueryBuilderTest {
 
   @Test
   public void testCtorRawSqlWithWhere() {
-    QueryBuilder wrapper = QueryBuilder.fromSqlQuery("SELECT * FROM t1 WHERE a > 100", new MysqlDialect());
+    QueryBuilder wrapper = QueryBuilder.fromSqlQuery(
+            "SELECT * FROM t1 WHERE a > 100",
+            new MysqlDialect());
 
     String expected = "SELECT * FROM (SELECT * FROM t1 WHERE a > 100) as user_sql_query WHERE 1=1";
 
@@ -225,7 +228,10 @@ public class QueryBuilderTest {
     String actual =
         QueryBuilder.fromSqlQuery(input, new MysqlDialect())
             .withPartitionCondition("partition", "a", "d")
-            .generateQueryToGetLimitsOfSplitColumn("splitCol", "mixy", "maxy")
+            .generateQueryToGetLimitsOfSplitColumn(
+                    "splitCol",
+                    "mixy",
+                    "maxy")
             .build();
     Assert.assertEquals(expected, actual);
   }

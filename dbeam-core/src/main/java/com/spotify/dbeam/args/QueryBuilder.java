@@ -211,8 +211,7 @@ public class QueryBuilder implements Serializable {
       Pattern p = Pattern.compile("^SELECT\\s*", Pattern.CASE_INSENSITIVE);
       Matcher m = p.matcher(initial);
       return m.replaceFirst(String.format("SELECT %s ", limitStr));
-    }
-    else {
+    } else {
       return initial;
     }
   }

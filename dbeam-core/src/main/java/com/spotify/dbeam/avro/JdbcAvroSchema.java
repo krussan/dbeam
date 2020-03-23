@@ -46,6 +46,8 @@ import static java.sql.Types.VARBINARY;
 import static java.sql.Types.VARCHAR;
 
 import com.spotify.dbeam.args.QueryBuilder;
+import com.spotify.dbeam.dialects.SqlDialect;
+
 import java.sql.Connection;
 import java.sql.JDBCType;
 import java.sql.ResultSet;
@@ -53,7 +55,6 @@ import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
 
-import com.spotify.dbeam.dialects.SqlDialect;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
 import org.slf4j.Logger;

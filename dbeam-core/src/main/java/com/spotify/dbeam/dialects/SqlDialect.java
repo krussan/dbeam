@@ -27,6 +27,7 @@ public abstract class SqlDialect {
   }
 
   public abstract LimitPosition getTopLimitPosition();
+
   public abstract String getLimitKeyword();
 
   public abstract String getTableNameRegex();
