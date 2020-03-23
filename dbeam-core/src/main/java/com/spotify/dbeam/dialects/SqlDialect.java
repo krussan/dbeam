@@ -18,20 +18,20 @@
  * -/-/-
  */
 
-package com.spotify.dbeam.avro;
+package com.spotify.dbeam.dialects;
 
 public abstract class SqlDialect {
   public abstract String getOneRowSql();
 
   public abstract String getTableNameRegex();
 
-  public static SqlDialect create(String url) {
-    final String[] parts = url.split(":", 3);
+  public static SqlDialect createFromUri(String uri) {
+    final String[] parts = uri.split(":", 3);
 
     if (parts[1].equalsIgnoreCase("sqlserver")) {
-      return new SqlServerQueries();
+      return new SqlServerDialect();
     } else {
-      return new MysqlQueries();
+      return new MysqlDialect();
     }
   }
 }

@@ -18,7 +18,7 @@
  * -/-/-
  */
 
-package com.spotify.dbeam.avro;
+package com.spotify.dbeam.dialects;
 
 public class MysqlDialect extends SqlDialect {
 

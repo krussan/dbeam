@@ -23,16 +23,26 @@ package com.spotify.dbeam.args;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.spotify.dbeam.args.ParallelQueryBuilder.findInputBounds;
 import static com.spotify.dbeam.args.ParallelQueryBuilder.queriesForBounds;
+import static com.spotify.dbeam.args.ParallelQueryBuilder.findDistributionBounds;
+import static com.spotify.dbeam.args.ParallelQueryBuilder.queriesForEvenDistribution;
+import static com.spotify.dbeam.args.ParallelQueryBuilder.findDistinctDistributionBounds;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.collect.Lists;
+import com.spotify.dbeam.dialects.SqlDialect;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.Serializable;
 import java.sql.Connection;
+import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.Period;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -57,6 +67,10 @@ public abstract class QueryBuilderArgs implements Serializable {
   public abstract Optional<String> splitColumn();
 
   public abstract Optional<Integer> queryParallelism();
+
+  public abstract Optional<String> evenDistribution();
+
+  public abstract Optional<SqlDialect> dialect();
 
   public abstract Builder builder();
 
@@ -89,29 +103,40 @@ public abstract class QueryBuilderArgs implements Serializable {
 
     public abstract Builder setQueryParallelism(Optional<Integer> queryParallelism);
 
+    public abstract Builder setEvenDistribution(String parallelism);
+
+    public abstract Builder setEvenDistribution(Optional<String> distribution);
+
+    public abstract Builder setDialect(SqlDialect dialect);
+
     public abstract QueryBuilderArgs build();
+
   }
 
-  private static Boolean checkTableName(String tableName) {
-    return tableName.matches("^[a-zA-Z_][a-zA-Z0-9_]*$");
+  private static Boolean checkTableName(String tableName, String tableNameRegex) {
+    return tableName.matches(tableNameRegex); // "^[a-zA-Z_][a-zA-Z0-9_]*$"
   }
 
-  private static Builder builderForTableName(String tableName) {
+  private static Logger LOGGER = LoggerFactory.getLogger(QueryBuilderArgs.class);
+
+  private static Builder builderForTableName(String tableName, SqlDialect dialect) {
     checkArgument(tableName != null, "TableName cannot be null");
-    checkArgument(checkTableName(tableName), "'table' must follow [a-zA-Z_][a-zA-Z0-9_]*");
+    checkArgument(checkTableName(tableName, dialect.getTableNameRegex()),
+            String.format("'table' must follow %s".format(dialect.getTableNameRegex())));
 
     return new AutoValue_QueryBuilderArgs.Builder()
         .setTableName(tableName)
+        .setDialect(dialect)
         .setBaseSqlQuery(QueryBuilder.fromTablename(tableName))
         .setPartitionPeriod(Period.ofDays(1));
   }
 
-  public static QueryBuilderArgs create(String tableName) {
-    return QueryBuilderArgs.builderForTableName(tableName).build();
+  public static QueryBuilderArgs create(String tableName, SqlDialect dialect) {
+    return QueryBuilderArgs.builderForTableName(tableName, dialect).setDialect(dialect).build();
   }
 
-  public static QueryBuilderArgs create(String tableName, String sqlQueryOpt) {
-    return QueryBuilderArgs.builderForTableName(tableName)
+  public static QueryBuilderArgs create(String tableName, SqlDialect dialect, String sqlQueryOpt) {
+    return QueryBuilderArgs.builderForTableName(tableName, dialect)
         .setBaseSqlQuery(QueryBuilder.fromSqlQuery(sqlQueryOpt))
         .build();
   }
@@ -139,11 +164,39 @@ public abstract class QueryBuilderArgs implements Serializable {
                               .withPartitionCondition(
                                   partitionColumn, datePartition.toString(), nextPartition);
                         }));
+
     this.limit()
         .ifPresent(l ->
                        this.baseSqlQuery().withLimit(queryParallelism().map(k -> l / k).orElse(l)));
 
     if (queryParallelism().isPresent() && splitColumn().isPresent()) {
+      LOGGER.info("Creating parallelism queries");
+
+      this.evenDistribution().ifPresent(x -> {
+          LOGGER.info("Creating even distribution queries");
+          String dist = evenDistribution().get();
+
+          if (dist.equalsIgnoreCase("even") || dist.equalsIgnoreCase("true")) {
+              Iterable<Long> bounds = findDistributionBounds(
+                      connection,
+                      this.queryParallelism().get(),
+                      this.baseSqlQuery(),
+                      splitColumn().get());
+
+            return queriesForEvenDistribution(bounds, splitColumn().get(), this.baseSqlQuery());
+          } else if (dist.equalsIgnoreCase("distinct")) {
+            Iterable<Long> bounds = findDistinctDistributionBounds(
+                    connection,
+                    this.queryParallelism().get(),
+                    this.baseSqlQuery(),
+                    splitColumn().get());
+
+            return queriesForEvenDistribution(bounds, splitColumn().get(), this.baseSqlQuery());
+          }
+        }
+      );
+
+      LOGGER.info("Creating straight split parallelism");
       long[] minMax = findInputBounds(connection, this.baseSqlQuery(), splitColumn().get());
       long min = minMax[0];
       long max = minMax[1];

@@ -95,9 +95,6 @@ public class JdbcAvroJob {
         this.getClass().getSimpleName(),
         this.getClass().getPackage().getImplementationVersion());
 
-
-
-
     final List<String> queries;
     final Schema generatedSchema;
     try (Connection connection = jdbcExportArgs.createConnection()) {

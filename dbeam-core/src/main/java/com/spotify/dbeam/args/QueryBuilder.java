@@ -96,7 +96,7 @@ public class QueryBuilder implements Serializable {
       this.userSqlQuery = removeTrailingSymbols(userSqlQuery);
       this.selectClause = selectClause;
     }
-    
+
     @Override
     public String getBaseSql() {
       return String.format("%s FROM (%s) as user_sql_query %s",
@@ -117,6 +117,8 @@ public class QueryBuilder implements Serializable {
   private final QueryBase base;
   private final List<String> whereConditions = new LinkedList<>();
   private Optional<String> limitStr = Optional.empty();
+  private Optional<String> groupByStr = Optional.empty();
+  private Optional<String> orderByStr = Optional.empty();
   
   private QueryBuilder(final QueryBase base) {
     this.base = base;
@@ -126,12 +128,16 @@ public class QueryBuilder implements Serializable {
     this.base = base;
     this.whereConditions.addAll(that.whereConditions);
     this.limitStr = that.limitStr;
+    this.groupByStr = that.groupByStr;
+    this.orderByStr = that.orderByStr;
   }
 
   private QueryBuilder(final QueryBuilder that) {
     this.base = that.base;
     this.whereConditions.addAll(that.whereConditions);
     this.limitStr = that.limitStr;
+    this.groupByStr = that.groupByStr;
+    this.orderByStr = that.orderByStr;
   }
 
   public QueryBuilder copy() {
@@ -185,6 +191,7 @@ public class QueryBuilder implements Serializable {
     StringBuilder buffer = new StringBuilder(initial);
     whereConditions.forEach(buffer::append);
     limitStr.ifPresent(buffer::append);
+
     return buffer.toString();
   }
 
@@ -201,6 +208,16 @@ public class QueryBuilder implements Serializable {
 
   public QueryBuilder withLimitOne() {
     return withLimit(1L);
+  }
+
+  public QueryBuilder withGroupBy(String groupBy) {
+    groupByStr = Optional.of(String.format(" GROUP BY %s", groupBy));
+    return this;
+  }
+
+  public QueryBuilder withOrderBy(String orderBy) {
+    orderByStr = Optional.of(String.format(" ORDER BY %s", orderBy));
+    return this;
   }
 
   @Override
@@ -246,6 +263,30 @@ public class QueryBuilder implements Serializable {
             maxSplitColumnName);
     
     return new QueryBuilder(base.copyWithSelect(selectMinMax), this);
+  }
+
+  public QueryBuilder generateQueryToDistinctDistributionBounds(
+          String splitColumn) {
+
+    String select = String.format("SELECT DISTINCT %s", splitColumn);
+
+    return new QueryBuilder(base.copyWithSelect(select), this);
+  }
+
+  public QueryBuilder generateDistributionQuery(String splitColumn) {
+    String select = String.format("SELECT MAX(%s), COUNT(1) FROM %s", splitColumn);
+
+    return new QueryBuilder(base.copyWithSelect(select), this);
+  }
+
+  public QueryBuilder generateDistributionBucketQuery(String splitColumn) {
+    String select = String.format(
+            "SELECT %s, COUNT(1) AS cnt",
+            splitColumn);
+
+    return new QueryBuilder(base.copyWithSelect(select))
+            .withGroupBy(splitColumn)
+            .withOrderBy(splitColumn);
   }
 
 }

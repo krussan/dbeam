@@ -76,6 +76,90 @@ public class ParallelQueryBuilder implements Serializable {
     return new long[]{min, max};
   }
 
+  static Iterable<Long> findDistinctDistributionBounds(Connection connection,
+                                                       int parallelism,
+                                                       QueryBuilder queryBuilder,
+                                                       String splitColumn) throws SQLException {
+    List<Long> distinctValues = new ArrayList<>();
+    List<Long> result = new ArrayList<>();
+
+    try (Statement statement = connection.createStatement()) {
+      ResultSet rs = statement.executeQuery(
+              queryBuilder.generateQueryToDistinctDistributionBounds(splitColumn)
+                      .build());
+
+      while (rs.next()) {
+        distinctValues.add(rs.getLong(1));
+      }
+
+      int nrOfSets = distinctValues.size();
+      int bucketSize = nrOfSets / parallelism;
+      int c = 0;
+
+      for (long b : distinctValues) {
+        if (c >= bucketSize) {
+          result.add(b);
+          c = 0;
+        } else {
+          c++;
+        }
+      }
+      return result;
+    }
+
+  }
+
+  /**
+   * Groups the data in buckets so that the reads can be evenly distributed.
+   *
+   * @return A list of values from the partition column to split by
+   *
+   * @throws SQLException when there is an exception retrieving the max and min fails.
+   */
+  static Iterable<Long> findDistributionBounds(Connection connection,
+                                               int parallelism,
+                                               QueryBuilder queryBuilder,
+                                               String splitColumn) throws SQLException {
+    long nrOfRows = 0;
+    long maxValue = 0;
+    List<Long> result = new ArrayList<>();
+
+    try (Statement statement = connection.createStatement()) {
+      ResultSet rs = statement.executeQuery(queryBuilder.generateDistributionQuery(splitColumn)
+                      .build());
+
+      if (rs.next()) {
+        maxValue = rs.getLong(1);
+        nrOfRows = rs.getLong(2);
+      } else {
+        return result;
+      }
+    }
+
+    try (Statement statement = connection.createStatement()) {
+      final ResultSet resultSet =
+            statement.executeQuery(queryBuilder.generateDistributionBucketQuery(splitColumn)
+              .build());
+
+      long c = 0;
+      long boundary = nrOfRows / parallelism;
+
+      while (resultSet.next()) {
+        c += resultSet.getLong(2);
+        if (c > boundary) {
+          result.add(resultSet.getLong(1));
+          c = 0;
+        }
+      }
+
+      result.add(maxValue);
+
+      return result;
+
+    }
+
+  }
+
   public static class QueryRange {
 
     private final long startPointIncl; // always inclusive
@@ -166,5 +250,53 @@ public class ParallelQueryBuilder implements Serializable {
 
     return ranges;
   }
+
+  protected static List<QueryRange> generateRanges(Iterable<Long> bounds) {
+    List<QueryRange> ranges = new ArrayList<>();
+    long prev = 0;
+
+    for (long b : bounds) {
+      ranges.add(new QueryRange(prev, b, false));
+    }
+
+    return ranges;
+  }
+
+
+  protected static Iterable<String> queriesForEvenDistribution(Iterable<Long> bounds,
+                                                      String splitColumn,
+                                                      QueryBuilder queryBuilder) {
+
+    List<QueryRange> ranges = generateRanges(bounds);
+
+    return ranges.stream()
+            .map(
+                    x ->
+                            queryBuilder
+                                    .copy() // we create a new query here
+                                    .withParallelizationCondition(
+                                            splitColumn, x.getStartPointIncl(), x.getEndPoint(), x.isEndPointExcl())
+                                    .build())
+            .collect(Collectors.toList());
+
+//    long prev = 0;
+//
+//    for (long b : bounds) {
+//      String condition = " AND %1$s >= %2$s AND %1$s < %3$s ";
+//
+//      queries.add(String.format(queryFormat,
+//              String.format(condition, splitColumn, prev, b)));
+//
+//      prev = b;
+//    }
+//
+//    // add last partition
+//    queries.add(String.format(queryFormat, String.format(" AND %s >= %s", splitColumn, prev)));
+//
+//    return queries;
+  }
+
+
+
 
 }

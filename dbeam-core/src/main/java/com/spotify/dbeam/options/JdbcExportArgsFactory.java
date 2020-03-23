@@ -26,7 +26,7 @@ import com.spotify.dbeam.args.JdbcAvroArgs;
 import com.spotify.dbeam.args.JdbcConnectionArgs;
 import com.spotify.dbeam.args.JdbcExportArgs;
 import com.spotify.dbeam.args.QueryBuilderArgs;
-import com.spotify.dbeam.avro.JdbcQueries;
+import com.spotify.dbeam.dialects.SqlDialect;
 import com.spotify.dbeam.avro.BeamJdbcAvroSchema;
 import java.io.IOException;
 import java.time.Duration;
@@ -39,6 +39,7 @@ import java.time.format.DateTimeFormatterBuilder;
 import java.time.temporal.ChronoField;
 import java.util.Collections;
 import java.util.Optional;
+
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -78,13 +79,12 @@ public class JdbcExportArgsFactory {
 
     LOGGER.info("Url :: {}", jdbcAvroArgs.jdbcConnectionConfiguration().url());
 
-    final JdbcQueries queries =
-        JdbcQueries.create(jdbcAvroArgs.jdbcConnectionConfiguration().url());
-
+    final SqlDialect dialect =
+        SqlDialect.createFromUri(jdbcAvroArgs.jdbcConnectionConfiguration().url());
 
     return JdbcExportArgs.create(
         jdbcAvroArgs,
-        createQueryArgs(queries, exportOptions),
+        createQueryArgs(dialect, exportOptions),
         exportOptions.getAvroSchemaNamespace(),
         Optional.ofNullable(exportOptions.getAvroDoc()),
         exportOptions.isUseAvroLogicalTypes(),
@@ -93,7 +93,7 @@ public class JdbcExportArgsFactory {
     );
   }
 
-  public static QueryBuilderArgs createQueryArgs(JdbcQueries queries,
+  public static QueryBuilderArgs createQueryArgs(SqlDialect dialect,
                                                  JdbcExportPipelineOptions options) {
     final Period partitionPeriod = Optional.ofNullable(options.getPartitionPeriod())
         .map(Period::parse).orElse(Period.ofDays(1));
@@ -126,7 +126,7 @@ public class JdbcExportArgsFactory {
         p > 0,
         "Query Parallelism must be a positive number. Specified queryParallelism was %s", p));
 
-    return createQueryBuilderArgs(options)
+    return createQueryBuilderArgs(options, dialect)
         .builder()
         .setLimit(Optional.ofNullable(options.getLimit()))
         .setPartitionColumn(partitionColumn)
@@ -138,15 +138,15 @@ public class JdbcExportArgsFactory {
         .build();
   }
 
-  private static QueryBuilderArgs createQueryBuilderArgs(JdbcExportPipelineOptions options)
-      throws IOException {
+  private static QueryBuilderArgs createQueryBuilderArgs(JdbcExportPipelineOptions options, SqlDialect dialect) {
     checkArgument((options.getTable() != null) != (options.getSqlFile() != null),
             "Either --table or --sqlFile must be present");
+
     if (options.getSqlFile() != null) {
       return QueryBuilderArgs.create(
-          "user_based_query", PasswordReader.readFromFile(options.getSqlFile()));
+          "user_based_query", dialect, PasswordReader.readFromFile(options.getSqlFile()));
     } else {
-      return QueryBuilderArgs.create(options.getTable());
+      return QueryBuilderArgs.create(options.getTable(), dialect);
     }
   }
 
