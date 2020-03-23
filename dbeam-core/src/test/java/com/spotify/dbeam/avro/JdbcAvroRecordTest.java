@@ -88,7 +88,7 @@ public class JdbcAvroRecordTest {
                         actual.getField("COF_NAME").schema().getTypes().get(1).getType());
     Assert.assertEquals(Schema.Type.INT,
                         actual.getField("SUP_ID").schema().getTypes().get(1).getType());
-    Assert.assertEquals(Schema.Type.STRING,
+    Assert.assertEquals(Schema.Type.DOUBLE,
                         actual.getField("PRICE").schema().getTypes().get(1).getType());
     Assert.assertEquals(Schema.Type.FLOAT,
                         actual.getField("TEMPERATURE").schema().getTypes().get(1).getType());
