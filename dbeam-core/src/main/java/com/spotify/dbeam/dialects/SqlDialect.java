@@ -20,15 +20,18 @@
 
 package com.spotify.dbeam.avro;
 
-public class MysqlQueries extends JdbcQueries {
+public abstract class SqlDialect {
+  public abstract String getOneRowSql();
 
-  @Override
-  public String getOneRowSql() {
-    return "SELECT * FROM %s LIMIT 1";
-  }
+  public abstract String getTableNameRegex();
 
-  @Override
-  public String getTableNameRegex() {
-    return "^[a-zA-Z_][a-zA-Z0-9_]*$";
+  public static SqlDialect create(String url) {
+    final String[] parts = url.split(":", 3);
+
+    if (parts[1].equalsIgnoreCase("sqlserver")) {
+      return new SqlServerQueries();
+    } else {
+      return new MysqlQueries();
+    }
   }
 }

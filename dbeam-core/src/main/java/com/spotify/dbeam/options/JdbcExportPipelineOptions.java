@@ -20,6 +20,8 @@
 
 package com.spotify.dbeam.options;
 
+import java.util.List;
+
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 
@@ -57,9 +59,9 @@ public interface JdbcExportPipelineOptions extends DBeamPipelineOptions {
   void setMinPartitionPeriod(String value);
 
   @Description("Limit the output number of rows, indefinite by default.")
-  Integer getLimit();
+  Long getLimit();
 
-  void setLimit(Integer value);
+  void setLimit(Long value);
 
   @Default.String("dbeam_generated")
   @Description("The namespace of the generated avro schema.")
@@ -110,10 +112,20 @@ public interface JdbcExportPipelineOptions extends DBeamPipelineOptions {
 
   void setEvenDistribution(String value);
 
-  @Default.String("PT0S")
+  @Default.String("P7D")
   @Description(
       "Export timeout, after this duration the export will be terminated.")
   String getExportTimeout();
 
   void setExportTimeout(String value);
+
+  @Description("Path to file with a target AVRO schema.")
+  String getAvroSchemaFilePath();
+
+  void setAvroSchemaFilePath(String value);
+
+  @Description("Precommand to be executed before query")
+  List<String> getPreCommand();
+
+  void setPreCommand(List<String> value);
 }

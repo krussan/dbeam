@@ -20,7 +20,7 @@
 
 package com.spotify.dbeam.avro;
 
-public class SqlServerQueries extends JdbcQueries {
+public class SqlServerDialect extends SqlDialect {
 
   @Override
   public String getOneRowSql() {

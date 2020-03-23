@@ -5,7 +5,7 @@
 
     <groupId>com.spotify</groupId>
     <artifactId>dbeam-parent</artifactId>
-    <version>0.8.3-SNAPSHOT</version>
+    <version>0.9.12-SNAPSHOT</version>
     <packaging>pom</packaging>
     <name>dbeam-parent</name>
 
@@ -29,7 +29,7 @@
         <developerConnection>scm:git:git@github.com:spotify/dbeam.git</developerConnection>
         <url>scm:https://github.com/spotify/dbeam/</url>
       <tag>HEAD</tag>
-  </scm>
+    </scm>
 
     <organization>
         <name>Spotify AB</name>
@@ -117,33 +117,29 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+        <maven.compiler.source>1.8</maven.compiler.source>
+        <maven.compiler.target>1.8</maven.compiler.target>
 
-        <beam.version>2.11.0</beam.version>
-        <postgresql.version>42.2.5</postgresql.version>
-        <mysql.version>5.1.47</mysql.version>
-        <socket-factory.version>1.0.11</socket-factory.version>
+        <beam.version>2.19.0</beam.version>
+        <postgresql.version>42.2.6</postgresql.version>
+        <mysql.version>8.0.19</mysql.version>
+        <socket-factory.version>1.0.14</socket-factory.version>
         <mssql.version>7.2.1.jre8</mssql.version>
 
-        <jackson.version>2.9.8</jackson.version>
-        <slf4j.version>1.7.25</slf4j.version>
-        <auto-value.version>1.5.3</auto-value.version>
-        <guava.version>20.0</guava.version>
-        <protobuf-util.version>3.3.1</protobuf-util.version>
-        <protobuf.version>3.6.1</protobuf.version>
+        <!--Ensure Beam SDK compatibility-->
+        <!--https://github.com/apache/beam/blob/master/buildSrc/src/main/groovy/org/apache/beam/gradle/BeamModulePlugin.groovy-->
+        <jackson.version>2.9.10</jackson.version>
+        <slf4j.version>1.7.28</slf4j.version>
+        <auto-value.version>1.7</auto-value.version>
+        <protobuf.version>3.11.1</protobuf.version>
         <findbugs.version>3.0.2</findbugs.version>
-        <google.cloud.core.version>1.61.0</google.cloud.core.version>
         <grpc.version>1.17.1</grpc.version>
-        <joda.version>2.4</joda.version>
-        <google-http-client.version>1.27.0</google-http-client.version>
+        <google-clients.version>1.28.0</google-clients.version>
+        <google.cloud.core.version>1.61.0</google.cloud.core.version>
+        <opencensus.version>0.18.0</opencensus.version>
 
-        <junit.version>4.12</junit.version>
+        <junit.version>4.13</junit.version>
         <hamcrest.version>1.3</hamcrest.version>
-
-        <maven-compiler-plugin.version>3.7.0</maven-compiler-plugin.version>
-        <maven-enforcer-plugin.version>3.0.0-M1</maven-enforcer-plugin.version>
-        <maven-jar-plugin.version>3.0.2</maven-jar-plugin.version>
-        <maven-shade-plugin.version>3.1.0</maven-shade-plugin.version>
-
     </properties>
 
     <modules>
@@ -214,10 +210,6 @@
                         <artifactId>guava</artifactId>
                     </exclusion>
                     <exclusion>
-                        <groupId>joda-time</groupId>
-                        <artifactId>joda-time</artifactId>
-                    </exclusion>
-                    <exclusion>
                         <groupId>com.google.errorprone</groupId>
                         <artifactId>error_prone_annotations</artifactId>
                     </exclusion>
@@ -245,22 +237,59 @@
                         <groupId>com.google.apis</groupId>
                         <artifactId>google-api-services-storage</artifactId>
                     </exclusion>
+                    <exclusion>
+                        <groupId>com.google.cloud</groupId>
+                        <artifactId>google-cloud-spanner</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>com.google.cloud.bigtable</groupId>
+                        <artifactId>bigtable-client-core</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>com.google.api.grpc</groupId>
+                        <artifactId>proto-google-cloud-pubsub-v1</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>com.google.api.grpc</groupId>
+                        <artifactId>grpc-google-cloud-pubsub-v1</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>com.google.api.grpc</groupId>
+                        <artifactId>proto-google-cloud-bigquerystorage-v1beta1</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>org.apache.avro</groupId>
+                        <artifactId>avro</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>com.google.http-client</groupId>
+                        <artifactId>google-http-client</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>com.google.http-client</groupId>
+                        <artifactId>google-http-client-jackson2</artifactId>
+                    </exclusion>
                 </exclusions>
             </dependency>
             <dependency>
                 <groupId>com.google.apis</groupId>
                 <artifactId>google-api-services-cloudkms</artifactId>
-                <version>v1-rev81-1.25.0</version>
+                <version>v1-rev88-1.25.0</version>
+            </dependency>
+            <dependency>
+                <groupId>io.opencensus</groupId>
+                <artifactId>opencensus-contrib-grpc-util</artifactId>
+                <version>${opencensus.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.opencensus</groupId>
+                <artifactId>opencensus-api</artifactId>
+                <version>${opencensus.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.google.cloud</groupId>
                 <artifactId>google-cloud-core</artifactId>
                 <version>${google.cloud.core.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>joda-time</groupId>
-                <artifactId>joda-time</artifactId>
-                <version>${joda.version}</version>
             </dependency>
 
             <dependency>
@@ -271,7 +300,7 @@
             <dependency>
                 <groupId>com.google.protobuf</groupId>
                 <artifactId>protobuf-java-util</artifactId>
-                <version>${protobuf-util.version}</version>
+                <version>${protobuf.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.google.code.findbugs</groupId>
@@ -284,6 +313,11 @@
                 <version>v1-rev20181109-1.27.0</version>
             </dependency>
 
+            <dependency>
+                <groupId>org.apache.avro</groupId>
+                <artifactId>avro</artifactId>
+                <version>1.9.1</version>
+            </dependency>
             <dependency>
                 <groupId>io.grpc</groupId>
                 <artifactId>grpc-all</artifactId>
@@ -302,7 +336,7 @@
             <dependency>
                 <groupId>com.google.errorprone</groupId>
                 <artifactId>error_prone_annotations</artifactId>
-                <version>2.2.0</version>
+                <version>2.3.3</version>
             </dependency>
             <dependency>
                 <groupId>com.google.api.grpc</groupId>
@@ -310,16 +344,35 @@
                 <version>1.12.0</version>
             </dependency>
             <dependency>
+                <groupId>com.google.api-client</groupId>
+                <artifactId>google-api-client</artifactId>
+                <version>${google-clients.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.http-client</groupId>
+                <artifactId>google-http-client</artifactId>
+                <version>${google-clients.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.http-client</groupId>
+                <artifactId>google-http-client-jackson2</artifactId>
+                <version>${google-clients.version}</version>
+            </dependency>
+            <dependency>
                 <groupId>com.google.http-client</groupId>
                 <artifactId>google-http-client-test</artifactId>
-                <version>${google-http-client.version}</version>
+                <version>${google-clients.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.fasterxml.jackson.core</groupId>
                 <artifactId>jackson-core</artifactId>
                 <version>${jackson.version}</version>
             </dependency>
-
+            <dependency>
+                <groupId>com.google.auto.value</groupId>
+                <artifactId>auto-value-annotations</artifactId>
+                <version>${auto-value.version}</version>
+            </dependency>
             <dependency>
                 <groupId>com.google.auto.value</groupId>
                 <artifactId>auto-value</artifactId>
@@ -371,13 +424,13 @@
             <dependency>
                 <groupId>org.mockito</groupId>
                 <artifactId>mockito-core</artifactId>
-                <version>1.9.5</version>
+                <version>3.3.0</version>
                 <scope>test</scope>
             </dependency>
             <dependency>
                 <groupId>com.h2database</groupId>
                 <artifactId>h2</artifactId>
-                <version>1.4.196</version>
+                <version>1.4.199</version>
                 <scope>test</scope>
             </dependency>
         </dependencies>
@@ -398,7 +451,7 @@
             <plugin>
               <groupId>org.apache.maven.plugins</groupId>
               <artifactId>maven-gpg-plugin</artifactId>
-              <version>1.5</version>
+              <version>1.6</version>
               <executions>
                 <execution>
                   <id>sign-artifacts</id>
@@ -406,13 +459,20 @@
                   <goals>
                     <goal>sign</goal>
                   </goals>
+                  <configuration>
+                      <gpgArguments>
+                          <arg>--batch</arg>
+                          <arg>--pinentry-mode</arg>
+                          <arg>loopback</arg>
+                      </gpgArguments>
+                  </configuration>
                 </execution>
               </executions>
             </plugin>
             <plugin>
               <groupId>org.apache.maven.plugins</groupId>
               <artifactId>maven-source-plugin</artifactId>
-              <version>3.0.1</version>
+              <version>3.2.1</version>
               <executions>
                 <execution>
                   <id>attach-sources</id>
@@ -425,7 +485,7 @@
             <plugin>
               <groupId>org.apache.maven.plugins</groupId>
               <artifactId>maven-javadoc-plugin</artifactId>
-              <version>3.0.1</version>
+              <version>3.1.1</version>
               <executions>
                 <execution>
                   <id>attach-javadocs</id>
@@ -434,11 +494,14 @@
                   </goals>
                 </execution>
               </executions>
+              <configuration>
+                  <source>8</source>
+              </configuration>
             </plugin>
             <plugin>
               <groupId>org.sonatype.plugins</groupId>
               <artifactId>nexus-staging-maven-plugin</artifactId>
-              <version>1.6.7</version>
+              <version>1.6.8</version>
               <extensions>true</extensions>
               <configuration>
                 <serverId>ossrh</serverId>
@@ -457,7 +520,7 @@
             <plugin>
               <groupId>org.apache.maven.plugins</groupId>
               <artifactId>maven-shade-plugin</artifactId>
-              <version>${maven-shade-plugin.version}</version>
+              <version>3.2.2</version>
               <executions>
                 <execution>
                   <id>bundle-and-repackage</id>
@@ -506,8 +569,10 @@
             <plugin>
               <groupId>org.jacoco</groupId>
               <artifactId>jacoco-maven-plugin</artifactId>
-              <version>0.8.2</version>
+              <version>0.8.4</version>
               <configuration>
+                <!--Configure to work on codecov-->
+                <!--https://github.com/codecov/example-java/blob/master/pom.xml-->
                 <excludes>
                   <exclude>**/AutoValue_*.*</exclude>
                 </excludes>
@@ -523,7 +588,6 @@
                     </limits>
                   </rule>
                 </rules>
-                <outputDirectory>${project.build.directory}/jacoco</outputDirectory>
               </configuration>
               <executions>
                 <execution>
@@ -558,7 +622,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-compiler-plugin</artifactId>
-                    <version>${maven-compiler-plugin.version}</version>
+                    <version>3.8.1</version>
                     <configuration>
                         <source>1.8</source>
                         <target>1.8</target>
@@ -587,25 +651,30 @@
                         <dependency>
                             <groupId>org.apache.maven.scm</groupId>
                             <artifactId>maven-scm-provider-gitexe</artifactId>
-                            <version>1.9.4</version>
+                            <version>1.11.2</version>
+                        </dependency>
+                        <dependency>
+                            <groupId>org.apache.maven.scm</groupId>
+                            <artifactId>maven-scm-api</artifactId>
+                            <version>1.11.2</version>
                         </dependency>
                     </dependencies>
                 </plugin>
 
                 <plugin>
                     <artifactId>maven-site-plugin</artifactId>
-                    <version>3.3</version>
+                    <version>3.7.1</version>
                 </plugin>
 
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-jar-plugin</artifactId>
-                    <version>2.4</version>
+                    <version>3.1.2</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-source-plugin</artifactId>
-                    <version>3.0.1</version>
+                    <version>3.2.1</version>
                     <executions>
                         <execution>
                             <id>attach-sources</id>
@@ -617,11 +686,11 @@
                 </plugin>
                 <plugin> <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-project-info-reports-plugin</artifactId>
-                    <version>2.7</version>
+                    <version>3.0.0</version>
                 </plugin>
                 <plugin>
                     <artifactId>maven-surefire-plugin</artifactId>
-                    <version>2.22.1</version>
+                    <version>3.0.0-M3</version>
                     <configuration>
                         <reuseForks>true</reuseForks>
                         <!--<forkCount>2</forkCount>-->
@@ -630,7 +699,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-enforcer-plugin</artifactId>
-                    <version>1.4.1</version>
+                    <version>3.0.0-M2</version>
                     <executions>
                         <execution>
                             <id>enforce</id>
@@ -644,7 +713,7 @@
                                     </requireJavaVersion>
                                     <requireMavenVersion>
                                         <!-- Keep aligned with prerequisite section below. -->
-                                        <version>[3.2,)</version>
+                                        <version>[3.3.9,)</version>
                                     </requireMavenVersion>
                                 </rules>
                             </configuration>

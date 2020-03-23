@@ -2,7 +2,7 @@
  * -\-\-
  * DBeam Core
  * --
- * Copyright (C) 2016 - 2018 Spotify AB
+ * Copyright (C) 2016 - 2019 Spotify AB
  * --
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,20 +18,24 @@
  * -/-/-
  */
 
-package com.spotify.dbeam.avro;
+package com.spotify.dbeam.jobs;
 
-public abstract class JdbcQueries {
-  public abstract String getOneRowSql();
+import java.io.IOException;
 
-  public abstract String getTableNameRegex();
+import org.junit.Test;
 
-  public static JdbcQueries create(String url) {
-    final String[] parts = url.split(":", 3);
+public class PsqlAvroJobTest {
 
-    if (parts[1].equalsIgnoreCase("sqlserver")) {
-      return new SqlServerQueries();
-    } else {
-      return new MysqlQueries();
-    }
+  @Test
+  public void shouldCreatePsqlAvroJob() throws IOException, ClassNotFoundException {
+    // no exception should be thrown
+    PsqlAvroJob.create(new String[]{
+        "--connectionUrl=jdbc:postgresql://fake",
+        "--table=foo",
+        "--partition=2025-02-28",
+        "--skipPartitionCheck",
+        "--output=/fake"
+    });
   }
+
 }

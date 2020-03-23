@@ -5,6 +5,9 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
+readonly SCRIPT_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
+readonly PROJECT_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null && pwd)"
+
 # This file contatins psql views with complex types to validate and troubleshoot dbeam
 
 PSQL_USER=postgres
@@ -16,11 +19,11 @@ startPostgres() {
     -e POSTGRES_DB=dbeam_test \
     -e POSTGRES_PASSWORD=mysecretpassword \
     -v /tmp/pgdata:/var/lib/postgresql/data \
-    -p 54321:5432/tcp -d postgres:10 || true
+    -p 54321:5432/tcp -d postgres:10 || docker start dbeam-postgres
   # https://stackoverflow.com/questions/35069027/docker-wait-for-postgresql-to-be-running
-  docker run -it --rm --link dbeam-postgres:postgres -e PGPASSWORD=mysecretpassword postgres:10.7 timeout 15s bash -ic 'until psql -h postgres -U postgres dbeam_test -c "select 1"; do sleep 1; done; echo "psql up and running.."'
+  time docker run -i --rm --link dbeam-postgres:postgres -e PGPASSWORD=mysecretpassword postgres:10.7 timeout 45s bash -ic 'until psql -h postgres -U postgres dbeam_test -c "select 1"; do sleep 1; done; echo "psql up and running.."'
   sleep 3
-  cat ./ddl.sql \
+  time cat "$SCRIPT_PATH/ddl.sql" \
     | docker run -i --rm --link dbeam-postgres:postgres -e PGPASSWORD=mysecretpassword postgres:10 psql -h postgres -U postgres dbeam_test
   echo '\d' | docker run -i --rm --link dbeam-postgres:postgres -e PGPASSWORD=mysecretpassword postgres:10 psql -h postgres -U postgres dbeam_test
 }
@@ -32,6 +35,16 @@ dockerClean() {
 #"-XX:+PrintGCApplicationStoppedTime"
 #-agentpath:/Applications/VisualVM.app/Contents/profiler/lib/deployed/jdk16/mac/libprofilerinterface.jnilib=/Applications/VisualVM.app/Contents/profiler/lib,5141
 export JAVA_OPTS="
+-XX:+UseParallelGC
+-Xmx1g
+-Xms1g
+"
+
+JVM11_OPTS="
+-Xlog:gc*:verbose_gc.log:time
+"
+
+JVM8_OPTS="
 -XX:+DisableExplicitGC
 -XX:+PrintGCDetails
 -XX:+PrintGCApplicationStoppedTime
@@ -41,26 +54,15 @@ export JAVA_OPTS="
 -XX:+UseGCLogFileRotation
 -XX:NumberOfGCLogFiles=5
 -XX:GCLogFileSize=2000k
--XX:+UseParallelGC
--Xmx1g
--Xms1g
 "
 
 pack() {
   # create a fat jar
-  (cd ..; mvn clean package -Ppack -DskipTests)
+  (cd "$PROJECT_PATH"; mvn package -Ppack -DskipTests -Dmaven.test.skip=true -Dmaven.site.skip=true -Dmaven.javadoc.skip=true)
 }
 
 runFromJar() {
-  (set -ex; java $JAVA_OPTS -cp ../dbeam-core/target/dbeam-core-shaded.jar com.spotify.dbeam.jobs.JdbcAvroJob "$@")
-}
-
-runDbeamDefault() {
-  time \
-    runFromJar \
-    --skipPartitionCheck \
-    --targetParallelism=1 \
-    "$@" 2>&1 | tee -a /tmp/out1
+  (set -ex; java $JAVA_OPTS -cp "$PROJECT_PATH"/dbeam-core/target/dbeam-core-shaded.jar com.spotify.dbeam.jobs.BenchJdbcAvroJob "$@")
 }
 
 DOCKER_PSQL_ARGS=(
@@ -71,42 +73,40 @@ DOCKER_PSQL_ARGS=(
 )
 
 runDBeamDockerCon() {
-  OUTPUT="./results/testn/$(date +%FT%H%M%S)/"
-  runDbeamDefault \
+  OUTPUT="$SCRIPT_PATH/results/testn/$(date +%FT%H%M%S)/"
+  time \
+    runFromJar \
+    --skipPartitionCheck \
+    --targetParallelism=1 \
     "${DOCKER_PSQL_ARGS[@]}" \
     "--partition=$(date +%F)" \
     "--output=$OUTPUT" \
-    "$@"
-}
-
-runScenario() {
-  for ((i=1;i<=3;i++)); do
-    runDBeamDockerCon "${@:2}"
-    jq -r "[\"$1\", .recordCount, .writeElapsedMs, .msPerMillionRows, .bytesWritten?] | @tsv" < "$OUTPUT/_METRICS.json" >> ./bench_dbeam_results
-  done
+    "$@" 2>&1 | tee -a /tmp/out1
 }
 
 runSuite() {
-  printf 'scenario\t\trecords\twriteElapsedMs\tmsPerMillionRows\tbytesWritten\n' >> ./bench_dbeam_results
+  java -version
   table=demo_table
-  BINARY_TRANSFER='false' runScenario "deflate1t5" --avroCodec=deflate1
-  BINARY_TRANSFER='false' runScenario "||query" --avroCodec=deflate1 --queryParallelism=5 --splitColumn=row_number
+  BINARY_TRANSFER='false' runDBeamDockerCon --executions=3 --avroCodec=deflate1
+  BINARY_TRANSFER='false' runDBeamDockerCon --executions=3 --avroCodec=zstandard1
+  BINARY_TRANSFER='false' runDBeamDockerCon --executions=3 --avroCodec=deflate1 --queryParallelism=5 --splitColumn=row_number
 }
 
-
-printResults() {
-  column -t -s $'\t' < ./bench_dbeam_results | tail -n 20
+light() {
+  pack
+  table=demo_table
+  BINARY_TRANSFER='false' runDBeamDockerCon --executions=3 --avroCodec=deflate1
 }
+
 
 main() {
   if [[ $# -gt 0 ]]; then
     "$@"
   else
-    pack
+    # pack  # assume pack already ran before
     time startPostgres
 
     runSuite
-    printResults
     dockerClean
   fi
 }

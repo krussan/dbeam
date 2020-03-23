@@ -49,17 +49,18 @@ class PasswordReader {
     FileSystems.setDefaultPipelineOptions(options);
     if (options.getPasswordFileKmsEncrypted() != null) {
       LOGGER.info("Decrypting password using KMS...");
-      return Optional.of(kmsDecrypter.decrypt(readFromFile(options.getPasswordFileKmsEncrypted())));
+      return Optional.of(kmsDecrypter.decrypt(readFromFile(options.getPasswordFileKmsEncrypted()))
+          .trim());
     } else if (options.getPasswordFile() != null) {
+      LOGGER.info("Reading password from file: {}", options.getPasswordFile());
       return Optional.of(readFromFile(options.getPasswordFile()));
     } else {
       return Optional.ofNullable(options.getPassword());
     }
   }
 
-  String readFromFile(String passwordFile) throws IOException {
+  static String readFromFile(String passwordFile) throws IOException {
     MatchResult.Metadata m = FileSystems.matchSingleFileSpec(passwordFile);
-    LOGGER.info("Reading password from file: {}", m.resourceId().toString());
     InputStream inputStream = Channels.newInputStream(FileSystems.open(m.resourceId()));
     return CharStreams.toString(new InputStreamReader(inputStream, Charsets.UTF_8));
   }

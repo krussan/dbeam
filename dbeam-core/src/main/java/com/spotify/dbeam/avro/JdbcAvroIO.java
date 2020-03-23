@@ -23,6 +23,7 @@ package com.spotify.dbeam.avro;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.io.CountingOutputStream;
 
 import com.spotify.dbeam.args.JdbcAvroArgs;
 
@@ -31,7 +32,7 @@ import java.nio.channels.WritableByteChannel;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import java.util.Map;
+import java.sql.Statement;
 
 import org.apache.avro.Schema;
 import org.apache.avro.file.CodecFactory;
@@ -81,7 +82,8 @@ public class JdbcAvroIO {
     final DynamicAvroDestinations<String, Void, String>
         destinations =
         AvroIO.constantDestinations(filenamePolicy, schema, ImmutableMap.of(),
-                                    jdbcAvroArgs.getCodecFactory(),
+                                    // since Beam does not support zstandard
+                                    CodecFactory.nullCodec(),
                                     SerializableFunctions.identity());
 
     final FileBasedSink<String, Void, String> sink = new JdbcAvroSink<>(
@@ -142,6 +144,7 @@ public class JdbcAvroIO {
     private DataFileWriter<GenericRecord> dataFileWriter;
     private Connection connection;
     private JdbcAvroMetering metering;
+    private CountingOutputStream countingOutputStream;
 
     JdbcAvroWriter(FileBasedSink.WriteOperation<Void, String> writeOperation,
                           DynamicAvroDestinations<?, Void, String> dynamicDestinations,
@@ -149,6 +152,7 @@ public class JdbcAvroIO {
       super(writeOperation, MimeTypes.BINARY);
       this.dynamicDestinations = dynamicDestinations;
       this.jdbcAvroArgs = jdbcAvroArgs;
+      this.metering = JdbcAvroMetering.create();
     }
 
     public Void getDestination() {
@@ -162,16 +166,14 @@ public class JdbcAvroIO {
       connection = jdbcAvroArgs.jdbcConnectionConfiguration().createConnection();
 
       Void destination = getDestination();
-      CodecFactory codec = dynamicDestinations.getCodec(destination);
       Schema schema = dynamicDestinations.getSchema(destination);
 
       dataFileWriter = new DataFileWriter<>(new GenericDatumWriter<GenericRecord>(schema))
-          .setCodec(codec)
+          .setCodec(jdbcAvroArgs.getCodecFactory())
           .setSyncInterval(syncInterval);
       dataFileWriter.setMeta("created_by", this.getClass().getCanonicalName());
-      dataFileWriter.create(schema, Channels.newOutputStream(channel));
-
-      this.metering = JdbcAvroMetering.create();
+      this.countingOutputStream = new CountingOutputStream(Channels.newOutputStream(channel));
+      dataFileWriter.create(schema, this.countingOutputStream);
       logger.info("jdbcavroio : Write prepared");
     }
 
@@ -187,12 +189,21 @@ public class JdbcAvroIO {
         jdbcAvroArgs.statementPreparator().setParameters(statement);
       }
 
-      long startTime = System.currentTimeMillis();
+      if (jdbcAvroArgs.preCommand() != null && jdbcAvroArgs.preCommand().size() > 0) {
+        Statement stmt = connection.createStatement();
+        for (String command : jdbcAvroArgs.preCommand()) {
+          stmt.execute(command);
+        }
+      }
+
+      long startTime = System.nanoTime();
       logger.info(
           "jdbcavroio : Executing query with fetchSize={} (this might take a few minutes) ...",
           statement.getFetchSize());
       ResultSet resultSet = statement.executeQuery();
-      this.metering.exposeExecuteQueryMs(System.currentTimeMillis() - startTime);
+      this.metering.exposeExecuteQueryMs((System.nanoTime() - startTime) / 1000000L);
+      checkArgument(resultSet != null,
+                    "JDBC resultSet was not properly created");
       return resultSet;
     }
 
@@ -204,27 +215,20 @@ public class JdbcAvroIO {
       logger.info("Running query :: {}", query);
 
       logger.info("jdbcavroio : Starting write...");
-      Schema schema = dynamicDestinations.getSchema(getDestination());
       try (ResultSet resultSet = executeQuery(query)) {
-        checkArgument(resultSet != null,
-                      "JDBC resultSet was not properly created");
+        metering.startWriteMeter();
+        final JdbcAvroRecordConverter converter = JdbcAvroRecordConverter.create(resultSet);
 
-        final Map<Integer, JdbcAvroRecord.SqlFunction<ResultSet, Object>>
-            mappings = JdbcAvroRecord.computeAllMappings(resultSet);
 
-        final int columnCount = resultSet.getMetaData().getColumnCount();
 
-        long startMs = metering.startWriteMeter();
 
         while (resultSet.next()) {
-          final GenericRecord genericRecord = JdbcAvroRecord.convertResultSetIntoAvroRecord(
-              schema, resultSet, mappings, columnCount);
-          this.dataFileWriter.append(genericRecord);
+          dataFileWriter.appendEncoded(converter.convertResultSetIntoAvroBytes());
           this.metering.incrementRecordCount();
         }
-
-        this.dataFileWriter.sync();
-        this.metering.exposeWriteElapsedMs(System.currentTimeMillis() - startMs);
+        this.dataFileWriter.flush();
+        this.metering.exposeWriteElapsed();
+        this.metering.exposeWrittenBytes(this.countingOutputStream.getCount());
       }
     }
 
@@ -235,7 +239,7 @@ public class JdbcAvroIO {
         connection.close();
       }
       if (dataFileWriter != null) {
-        dataFileWriter.flush();
+        dataFileWriter.close();
       }
       logger.info("jdbcavroio : Write finished");
     }

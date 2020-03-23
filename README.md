@@ -39,20 +39,31 @@ simply streams the table contents via JDBC into target location as Avro.
 
 - `--connectionUrl`: the JDBC connection url to perform the dump
 - `--table`: the database table to query and perform the dump
+- `--sqlFile`: a path to a file containing a SQL query (used instead a generated query based on `table` parameter)
 - `--output`: the path to store the output
 - `--username`: the database user name
 - `--password`: the database password
 - `--passwordFile`: a path to a local file containing the database password
 - `--limit`: limit the output number of rows, indefinite by default
 - `--avroSchemaNamespace`: the namespace of the generated avro schema, `"dbeam_generated"` by default
-- `--exportTimeout`: maximum time the export can take, after this timeout the job is cancelled. Default is `PT0S` (no timeout).
+- `--exportTimeout`: maximum time the export can take, after this timeout the job is cancelled. Default is `P7D` (long timeout).
 - `--partitionColumn`: the name of a date/timestamp column to filter data based on current partition
 - `--partition`: the date of the current partition, parsed using [ISODateTimeFormat.localDateOptionalTimeParser](http://www.joda.org/joda-time/apidocs/org/joda/time/format/ISODateTimeFormat.html#localDateOptionalTimeParser--)
 - `--partitionPeriod`: the period in which dbeam runs, used to filter based on current partition and also to check if executions are being run for a too old partition
 - `--skipPartitionCheck`: when partition column is not specified, by default fail when the partition parameter is not too old; use this avoid this behavior
 - `--minPartitionPeriod`: the minimum partition required for the job not to fail (when partition column is not specified), by default `now() - 2*partitionPeriod`
-- `--queryParallelism`: number of queries to generate to extract in parallel. Generates one query if nothing is specified. Must be used split column defined.
-- `--splitColumn`: a long / integer column which is used to determine bounds for generating parallel queries. Must be used with parallelism defined.
+- `--queryParallelism`: max number of queries to generate to extract in parallel. Generates one query if nothing is specified. Split column `splitColumn` must be defined.
+- `--splitColumn`: a long / integer type column which is used to determine bounds for generating parallel queries. Must be used with parallelism defined.
+- `--avroSchemaFilePath`: a path to a file containing an input avro schema file (optional)
+
+#### Input Avro schema file
+If provided an input Avro schema file, dbeam will read input schema file and use some of the 
+properties when an output Avro schema is created.
+#### Following fields will be propagated from input into output schema:
+* `record.doc`   
+* `record.namespace`   
+* `record.field.doc`   
+
 
 #### DBeam Parallel Mode
 

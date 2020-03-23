@@ -21,7 +21,6 @@
 package com.spotify.dbeam.jobs;
 
 import com.google.common.base.Preconditions;
-
 import com.spotify.dbeam.args.JdbcExportArgs;
 import com.spotify.dbeam.avro.BeamJdbcAvroSchema;
 import com.spotify.dbeam.avro.JdbcAvroIO;
@@ -30,12 +29,9 @@ import com.spotify.dbeam.beam.MetricsHelper;
 import com.spotify.dbeam.options.JdbcExportArgsFactory;
 import com.spotify.dbeam.options.JdbcExportPipelineOptions;
 import com.spotify.dbeam.options.OutputOptions;
-
 import java.io.IOException;
+import java.sql.Connection;
 import java.util.List;
-import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
-
 import org.apache.avro.Schema;
 import org.apache.beam.runners.direct.DirectOptions;
 import org.apache.beam.sdk.Pipeline;
@@ -65,7 +61,7 @@ public class JdbcAvroJob {
                                 "'output' must be defined");
   }
 
-  public static JdbcAvroJob create(PipelineOptions pipelineOptions)
+  public static JdbcAvroJob create(PipelineOptions pipelineOptions, String output)
       throws IOException, ClassNotFoundException {
     // make sure pipeline.run() does not call waitUntilFinish
     // instead we call with an explicit duration/exportTimeout configuration
@@ -73,7 +69,13 @@ public class JdbcAvroJob {
     return new JdbcAvroJob(pipelineOptions,
                            Pipeline.create(pipelineOptions),
                            JdbcExportArgsFactory.fromPipelineOptions(pipelineOptions),
-                           pipelineOptions.as(OutputOptions.class).getOutput());
+                           output);
+  }
+
+  public static JdbcAvroJob create(PipelineOptions pipelineOptions)
+      throws IOException, ClassNotFoundException {
+    return create(pipelineOptions,
+                  pipelineOptions.as(OutputOptions.class).getOutput());
   }
 
   public static JdbcAvroJob create(String[] cmdLineArgs)
@@ -93,22 +95,22 @@ public class JdbcAvroJob {
         this.getClass().getSimpleName(),
         this.getClass().getPackage().getImplementationVersion());
 
-    final Schema generatedSchema = BeamJdbcAvroSchema.createSchema(
-        this.pipeline, jdbcExportArgs);
 
-    BeamHelper.saveStringOnSubPath(output, "/_AVRO_SCHEMA.avsc", generatedSchema.toString(true));
 
-    final List<String> queries = StreamSupport.stream(
-        jdbcExportArgs
-            .queryBuilderArgs()
-            .buildQueries(jdbcExportArgs.createConnection())
-            .spliterator(),
-        false)
-        .collect(Collectors.toList());
 
+    final List<String> queries;
+    final Schema generatedSchema;
+    try (Connection connection = jdbcExportArgs.createConnection()) {
+      generatedSchema = BeamJdbcAvroSchema.createSchema(this.pipeline, jdbcExportArgs, connection);
+      queries = jdbcExportArgs
+          .queryBuilderArgs()
+          .buildQueries(jdbcExportArgs.createConnection());
+    }
+    BeamHelper.saveStringOnSubPath(output, "/_AVRO_SCHEMA.avsc",
+                                   generatedSchema.toString(true));
     for (int i = 0; i < queries.size(); i++) {
-      BeamHelper.saveStringOnSubPath(output, String.format("/_queries/query_%d.sql", i),
-                                     queries.get(i));
+      BeamHelper.saveStringOnSubPath(
+          output, String.format("/_queries/query_%d.sql", i), queries.get(i));
     }
     LOGGER.info("Running queries: {}", queries.toString());
 
