@@ -89,12 +89,12 @@ public abstract class Coffee {
   }
 
   public static Coffee COFFEE1 = create(
-      "costa rica caffee", Optional.empty(), new BigDecimal("7.20"), 82.5f,
+      "costa rica caffee", Optional.empty(), new BigDecimal("7.2"), 82.5f,
       320.7, true, 17, 200L, new java.sql.Timestamp(1488300933000L),
       Optional.empty(), UUID.fromString("123e4567-e89b-12d3-a456-426655440000"), 1L
   );
   public static Coffee COFFEE2 = create(
-      "colombian caffee", Optional.empty(), new BigDecimal("9.20"), 87.5f,
+      "colombian caffee", Optional.empty(), new BigDecimal("9.2"), 87.5f,
       230.7, true, 13, 201L, new java.sql.Timestamp(1488300723000L),
       Optional.empty(), UUID.fromString("123e4567-e89b-a456-12d3-426655440000"), 2L
   );

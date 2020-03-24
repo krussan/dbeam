@@ -21,6 +21,7 @@
 package com.spotify.dbeam.args;
 
 import com.spotify.dbeam.dialects.MysqlDialect;
+import com.spotify.dbeam.dialects.SqlDialect;
 import com.spotify.dbeam.options.JdbcExportArgsFactory;
 import com.spotify.dbeam.options.JdbcExportPipelineOptions;
 
@@ -92,6 +93,7 @@ public class JdbcExportOptionsTest {
     JdbcExportArgs actual = optionsFromArgs("--connectionUrl=jdbc:postgresql://some_db --sqlFile="
         + sqlFile.getAbsolutePath());
 
+    SqlDialect dialect = actual.queryBuilderArgs().dialect().get();
     JdbcExportArgs expected = JdbcExportArgs.create(
         JdbcAvroArgs.create(
             JdbcConnectionArgs.create("jdbc:postgresql://some_db")
@@ -99,7 +101,7 @@ public class JdbcExportOptionsTest {
         ),
         QueryBuilderArgs.create(
             "user_based_query",
-            new MysqlDialect(),
+            dialect,
             com.google.common.io.Files.asCharSource(sqlFile, StandardCharsets.UTF_8).read()
         )
     );
@@ -114,12 +116,13 @@ public class JdbcExportOptionsTest {
     JdbcExportArgs actual = optionsFromArgs(
         "--connectionUrl=jdbc:postgresql://some_db --table=some_table");
 
+    SqlDialect dialect = actual.queryBuilderArgs().dialect().get();
     JdbcExportArgs expected = JdbcExportArgs.create(
         JdbcAvroArgs.create(
             JdbcConnectionArgs.create("jdbc:postgresql://some_db")
                 .withUsername("dbeam-extractor")
         ),
-        QueryBuilderArgs.create("some_table", new MysqlDialect())
+        QueryBuilderArgs.create("some_table", dialect)
     );
 
     Assert.assertEquals(expected, actual);
@@ -130,12 +133,14 @@ public class JdbcExportOptionsTest {
     JdbcExportArgs actual = optionsFromArgs(
         "--connectionUrl=jdbc:mysql://some_db --table=some_table");
 
+    SqlDialect dialect = actual.queryBuilderArgs().dialect().get();
+
     JdbcExportArgs expected = JdbcExportArgs.create(
         JdbcAvroArgs.create(
             JdbcConnectionArgs.create("jdbc:mysql://some_db")
                 .withUsername("dbeam-extractor")
         ),
-        QueryBuilderArgs.create("some_table", new MysqlDialect())
+        QueryBuilderArgs.create("some_table", dialect)
     );
 
     Assert.assertEquals(expected, actual);
@@ -194,13 +199,15 @@ public class JdbcExportOptionsTest {
         "--connectionUrl=jdbc:postgresql://some_db --table=some_table "
         + "--username=someuser --password=somepassword");
 
+    SqlDialect dialect = actual.queryBuilderArgs().dialect().get();
+
     JdbcExportArgs expected = JdbcExportArgs.create(
         JdbcAvroArgs.create(
             JdbcConnectionArgs.create("jdbc:postgresql://some_db")
                 .withUsername("someuser")
                 .withPassword("somepassword")
         ),
-        QueryBuilderArgs.create("some_table", new MysqlDialect())
+        QueryBuilderArgs.create("some_table", dialect)
     );
 
     Assert.assertEquals(expected, actual);
