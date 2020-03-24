@@ -256,7 +256,8 @@ public class ParallelQueryBuilder implements Serializable {
     long prev = 0;
 
     for (long b : bounds) {
-      ranges.add(new QueryRange(prev, b, false));
+      ranges.add(new QueryRange(prev, b, true));
+      prev = b;
     }
 
     return ranges;

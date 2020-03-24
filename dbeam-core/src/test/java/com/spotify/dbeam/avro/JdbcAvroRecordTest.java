@@ -134,7 +134,13 @@ public class JdbcAvroRecordTest {
     ResultSet rs = DbTestHelper.createConnection(CONNECTION_URL)
         .createStatement().executeQuery("SELECT * FROM COFFEES");
     Schema schema =
-        JdbcAvroSchema.createAvroSchema(rs, "dbeam_generated", "connection", "doc", false);
+        JdbcAvroSchema.createAvroSchema(
+                "COFFEES",
+                rs,
+                "dbeam_generated",
+                "connection",
+                "doc",
+                false);
     JdbcAvroRecordConverter converter = JdbcAvroRecordConverter.create(rs);
     DataFileWriter<GenericRecord> dataFileWriter =
         new DataFileWriter<>(new GenericDatumWriter<>(schema));
@@ -177,4 +183,5 @@ public class JdbcAvroRecordTest {
     );
     Assert.assertEquals(Coffee.COFFEE1, actual);
   }
+
 }

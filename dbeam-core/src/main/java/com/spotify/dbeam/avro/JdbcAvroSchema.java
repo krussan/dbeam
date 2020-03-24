@@ -89,6 +89,7 @@ public class JdbcAvroSchema {
           statement.executeQuery(baseSqlQuery.copy().withLimitOne().build());
 
       Schema schema = createAvroSchema(
+          baseSqlQuery.getTableName(),
           resultSet, avroSchemaNamespace, connection.getMetaData().getURL(), avroDoc,
           useLogicalTypes);
       LOGGER.info("Schema created successfully. Generated schema: {}", schema.toString());
@@ -97,6 +98,7 @@ public class JdbcAvroSchema {
   }
 
   public static Schema createAvroSchema(
+      String tableName,
       ResultSet resultSet,
       String avroSchemaNamespace,
       String connectionUrl,
@@ -104,12 +106,10 @@ public class JdbcAvroSchema {
       boolean useLogicalTypes)
       throws SQLException {
     ResultSetMetaData meta = resultSet.getMetaData();
-    String tableName = "no_table_name";
 
-    if (meta.getColumnCount() > 0) {
-      tableName = normalizeForAvro(meta.getTableName(1));
-    }
+    tableName = normalizeForAvro(tableName);
 
+    LOGGER.info("Creating schema for tableName :: {}", tableName);
     SchemaBuilder.FieldAssembler<Schema> builder = SchemaBuilder.record(tableName)
         .namespace(avroSchemaNamespace)
         .doc(avroDoc)

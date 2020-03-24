@@ -29,6 +29,9 @@ import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * Wrapper class for raw SQL query.
  */
@@ -38,10 +41,13 @@ public class QueryBuilder implements Serializable {
   private static final String DEFAULT_SELECT_CLAUSE = "SELECT *";
   private static final String DEFAULT_WHERE_CLAUSE = "WHERE 1=1";
 
+  private static Logger LOGGER = LoggerFactory.getLogger(QueryBuilder.class);
 
   interface QueryBase {
 
     String getBaseSql();
+
+    String getTableName();
 
     QueryBase copyWithSelect(final String selectClause);
   }
@@ -69,6 +75,11 @@ public class QueryBuilder implements Serializable {
     public String getBaseSql() {
       return String.format("%s FROM %s %s",
               selectClause, tableName, DEFAULT_WHERE_CLAUSE);
+    }
+
+    @Override
+    public String getTableName() {
+      return tableName;
     }
 
     @Override
@@ -105,6 +116,11 @@ public class QueryBuilder implements Serializable {
     public String getBaseSql() {
       return String.format("%s FROM (%s) as user_sql_query %s",
               selectClause, userSqlQuery, DEFAULT_WHERE_CLAUSE);
+    }
+
+    @Override
+    public String getTableName() {
+      return "user_sql_query";
     }
 
     @Override
@@ -203,17 +219,28 @@ public class QueryBuilder implements Serializable {
       limitStr.ifPresent(buffer::append);
     }
 
+    groupByStr.ifPresent(buffer::append);
+    orderByStr.ifPresent(buffer::append);
+
     return buffer.toString();
   }
 
   private String replaceInitialSelect(String initial) {
-    if (this.dialect.getTopLimitPosition() == SqlDialect.LimitPosition.AFTER_SELECT) {
+    if (limitStr.isPresent()
+        && this.dialect.getTopLimitPosition() == SqlDialect.LimitPosition.AFTER_SELECT) {
       Pattern p = Pattern.compile("^SELECT\\s*", Pattern.CASE_INSENSITIVE);
       Matcher m = p.matcher(initial);
-      return m.replaceFirst(String.format("SELECT %s ", limitStr));
+      String result = m.replaceFirst(String.format("SELECT %s ", limitStr.get()));
+      LOGGER.info("Replaced limit :: {}", result);
+
+      return result;
     } else {
       return initial;
     }
+  }
+
+  public String getTableName() {
+    return base.getTableName();
   }
 
   private static String removeTrailingSymbols(String sqlQuery) {
@@ -223,7 +250,7 @@ public class QueryBuilder implements Serializable {
   }
 
   public QueryBuilder withLimit(long limit) {
-    limitStr = Optional.of(String.format(" LIMIT %d", limit));
+    limitStr = Optional.of(String.format(" %s %d", dialect.getLimitKeyword(), limit));
     return this;
   }
 
@@ -295,7 +322,7 @@ public class QueryBuilder implements Serializable {
   }
 
   public QueryBuilder generateDistributionQuery(String splitColumn) {
-    String select = String.format("SELECT MAX(%s), COUNT(1) FROM %s", splitColumn);
+    String select = String.format("SELECT MAX(%s), COUNT(1)", splitColumn);
 
     return new QueryBuilder(base.copyWithSelect(select), this);
   }
