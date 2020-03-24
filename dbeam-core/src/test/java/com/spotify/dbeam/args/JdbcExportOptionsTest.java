@@ -20,7 +20,6 @@
 
 package com.spotify.dbeam.args;
 
-import com.spotify.dbeam.dialects.MysqlDialect;
 import com.spotify.dbeam.dialects.SqlDialect;
 import com.spotify.dbeam.options.JdbcExportArgsFactory;
 import com.spotify.dbeam.options.JdbcExportPipelineOptions;
