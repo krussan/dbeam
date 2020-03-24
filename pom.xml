@@ -124,11 +124,11 @@
         <postgresql.version>42.2.6</postgresql.version>
         <mysql.version>8.0.19</mysql.version>
         <socket-factory.version>1.0.14</socket-factory.version>
-        <mssql.version>7.2.1.jre8</mssql.version>
+        <mssql.version>8.2.1.jre8</mssql.version>
 
         <!--Ensure Beam SDK compatibility-->
         <!--https://github.com/apache/beam/blob/master/buildSrc/src/main/groovy/org/apache/beam/gradle/BeamModulePlugin.groovy-->
-        <jackson.version>2.9.10</jackson.version>
+        <jackson.version>2.10.3</jackson.version>
         <slf4j.version>1.7.28</slf4j.version>
         <auto-value.version>1.7</auto-value.version>
         <protobuf.version>3.11.1</protobuf.version>
