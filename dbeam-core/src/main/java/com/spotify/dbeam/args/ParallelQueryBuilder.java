@@ -29,6 +29,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Types;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -254,9 +255,12 @@ public class ParallelQueryBuilder implements Serializable {
   protected static List<QueryRange> generateRanges(Iterable<Long> bounds) {
     List<QueryRange> ranges = new ArrayList<>();
     long prev = 0;
+    Iterator<Long> iter = bounds.iterator();
 
-    for (long b : bounds) {
-      ranges.add(new QueryRange(prev, b, true));
+    while (iter.hasNext()) {
+      long b = iter.next();
+
+      ranges.add(new QueryRange(prev, b, iter.hasNext()));
       prev = b;
     }
 
