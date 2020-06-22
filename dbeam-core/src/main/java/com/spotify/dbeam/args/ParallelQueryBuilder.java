@@ -254,7 +254,7 @@ public class ParallelQueryBuilder implements Serializable {
 
   protected static List<QueryRange> generateRanges(Iterable<Long> bounds) {
     List<QueryRange> ranges = new ArrayList<>();
-    long prev = 0;
+    long prev = Integer.MIN_VALUE;
     Iterator<Long> iter = bounds.iterator();
 
     while (iter.hasNext()) {
